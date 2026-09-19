@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark premium base — cool charcoal */
+    --background: 200 14% 3%;
+    --foreground: 0 0% 98%;
+    --card: 200 12% 6%;
+    --card-foreground: 0 0% 98%;
+    --muted: 200 10% 12%;
+    --muted-foreground: 210 8% 58%;
+    --border: 200 10% 100%;
+    --input: 200 10% 100%;
+    --ring: 173 80% 40%;
+
+    /* Brand teal (HSL) — slate → teal → emerald identity */
+    --primary: 173 80% 40%;
+    --primary-foreground: 200 20% 6%;
+
+    --brand: 173 80% 40%;
+    --brand-light: 166 72% 51%;
+    --brand-dark: 175 84% 32%;
+    --brand-emerald: 158 64% 52%;
+
+    --surface-950: #06080a;
+    --surface-900: #0b0f12;
+    --surface-800: #12181d;
+
+    --radius-card: 1.25rem;
+    --shadow-soft: 0 4px 24px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply antialiased text-foreground bg-surface-950 font-sans;
+  }
+
+  ::selection {
+    background: rgba(20, 184, 166, 0.35);
+    color: #fff;
+  }
+
+  /* Focus ring for keyboard users */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/50 ring-offset-2 ring-offset-surface-950;
+  }
+}
+
+@layer components {
+  /* ——— Surfaces ——— */
+  .card {
+    @apply rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-6 shadow-soft;
+  }
+
+  .glass {
+    @apply border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl shadow-glass;
+  }
+
+  /* ——— Buttons ——— */
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl
+      bg-brand-gradient px-5 py-2.5 text-sm font-semibold text-surface-950
+      transition-all duration-micro
+      hover:shadow-glow-sm hover:brightness-110
+      active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none disabled:hover:brightness-100;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1]
+      bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/85 backdrop-blur-sm
+      transition-all duration-micro
+      hover:border-white/[0.16] hover:bg-white/[0.07] hover:text-white
+      active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium
+      text-white/70 transition-all duration-micro
+      hover:bg-white/[0.06] hover:text-white
+      active:scale-[0.98];
+  }
+
+  /* ——— Form ——— */
+  .input-field {
+    @apply w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3
+      text-sm text-white placeholder:text-white/30
+      transition-all duration-soft
+      focus:border-brand-500/40 focus:bg-white/[0.05] focus:outline-none;
+    box-shadow: 0 0 0 0 transparent;
+  }
+
+  .input-field:focus {
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
+  }
+
+  .label {
+    @apply mb-2 block text-[11px] font-medium uppercase tracking-[0.12em] text-white/40;
+  }
+
+  /* ——— Stats / tags ——— */
+  .stat-card {
+    @apply card flex items-center gap-5 transition-all duration-soft
+      hover:border-brand-500/20 hover:bg-white/[0.035] hover:shadow-lift;
+  }
+
+  .vetra-link {
+    @apply text-sm text-white/50 underline-offset-4 transition-colors duration-soft
+      hover:text-brand-300 hover:underline;
+  }
+
+  .vetra-tag {
+    @apply rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1
+      text-[11px] uppercase tracking-wider text-white/50;
+  }
+
+  /* ——— Brand text / accents ——— */
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  .heading-display {
+    @apply font-display tracking-tight text-white;
+  }
+
+  /* ——— Loading skeleton ——— */
+  .skeleton {
+    @apply relative overflow-hidden rounded-2xl bg-white/[0.04];
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full bg-shimmer;
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .bg-page {
+    background-color: var(--surface-950);
+    background-image: theme('backgroundImage.mesh-dark');
+  }
+}

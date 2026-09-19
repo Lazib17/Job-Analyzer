@@ -1,0 +1,14 @@
+uploads/
+.env
+.env.*
+!.env.example
+*.pyc
+__pycache__/
+venv/
+.venv/
+node_modules/
+dist/
+backend/local_data.db
+*.db
+.cursor/
+
