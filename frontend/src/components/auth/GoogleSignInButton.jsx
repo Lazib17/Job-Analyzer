@@ -1,14 +1,17 @@
 import { useGoogleLogin } from '@react-oauth/google';
 
-export default function GoogleSignInButton({ onSuccess, onError, loading }) {
+export default function GoogleSignInButton(props) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) return null;
+  return <GoogleSignInButtonInner {...props} />;
+}
+
+function GoogleSignInButtonInner({ onSuccess, onError, loading }) {
   const login = useGoogleLogin({
     onSuccess: (tokenResponse) => onSuccess(tokenResponse.access_token),
     onError: () => onError?.('Google sign-in was cancelled or failed'),
     scope: 'openid email profile',
   });
-
-  if (!clientId) return null;
 
   return (
     <button
