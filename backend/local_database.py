@@ -4,6 +4,7 @@ Local SQLite database fallback when Supabase is unavailable.
 
 import json
 import logging
+import os
 import re
 import sqlite3
 import uuid
@@ -13,7 +14,11 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent / "local_data.db"
+
+def _db_path() -> Path:
+    if os.getenv("VERCEL"):
+        return Path("/tmp/local_data.db")
+    return Path(__file__).parent / "local_data.db"
 ALLOWED_TABLES = frozenset({"users", "resumes", "jobs", "analysis", "search_history"})
 
 SCHEMA = """
@@ -103,11 +108,12 @@ def _validate_order_by(order_by: str) -> None:
 
 def init_local_db() -> None:
     """Create SQLite tables if they do not exist."""
-    with sqlite3.connect(DB_PATH) as conn:
+    path = _db_path()
+    with sqlite3.connect(path) as conn:
         conn.executescript(SCHEMA)
         _migrate_google_auth(conn)
         conn.commit()
-    logger.info("Local SQLite database ready at %s", DB_PATH)
+    logger.info("Local SQLite database ready at %s", path)
 
 
 def _migrate_google_auth(conn: sqlite3.Connection) -> None:
@@ -159,7 +165,7 @@ def _migrate_google_auth(conn: sqlite3.Connection) -> None:
 
 
 def _get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 

@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     scrape_max_jobs: int = 25
 
     # File uploads
-    upload_dir: str = "uploads"
+    upload_dir: str = "/tmp/uploads" if os.getenv("VERCEL") else "uploads"
     max_upload_size_mb: int = 10
 
     # CORS
@@ -45,7 +45,13 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        for key in ("VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL", "VERCEL_BRANCH_URL"):
+            host = os.getenv(key, "").strip()
+            if not host:
+                continue
+            origins.append(host if host.startswith("http") else f"https://{host}")
+        return origins
 
     class Config:
         env_file = ".env"
@@ -60,5 +66,7 @@ def get_settings() -> Settings:
 
 settings = get_settings()
 
-# Ensure upload directory exists
-os.makedirs(settings.upload_dir, exist_ok=True)
+try:
+    os.makedirs(settings.upload_dir, exist_ok=True)
+except OSError:
+    pass

@@ -13,10 +13,6 @@ from database import fetch_all, fetch_one, insert_row, update_row
 from models.job import JobResponse, JobSearchRequest, JobWithAnalysis
 from models.scraped_job import ScrapedJob
 from models.user import UserResponse
-from services.career_cross_scraper import career_cross_scraper
-from services.gaijinpot_scraper import gaijinpot_scraper
-from services.mynavi_scraper import mynavi_scraper
-from services.wantedly_scraper import wantedly_scraper
 from utils.auth import get_current_user
 from utils.job_merge import merge_and_deduplicate
 from utils.job_storage import scraped_job_to_db_row
@@ -68,6 +64,11 @@ async def search_jobs(
     """
     Scrape jobs from all platforms, merge, deduplicate, and save to database.
     """
+    from services.career_cross_scraper import career_cross_scraper
+    from services.gaijinpot_scraper import gaijinpot_scraper
+    from services.mynavi_scraper import mynavi_scraper
+    from services.wantedly_scraper import wantedly_scraper
+
     per_source_limit = max(5, search.max_results // 4)
 
     mynavi_jobs, career_cross_jobs, wantedly_jobs, gaijinpot_jobs = await asyncio.gather(

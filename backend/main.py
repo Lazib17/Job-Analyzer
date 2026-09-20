@@ -24,7 +24,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     logger.info("Starting %s", settings.app_name)
-    init_database()
+    try:
+        init_database()
+    except Exception:
+        logger.exception("Database initialization failed")
     yield
     logger.info("Shutting down %s", settings.app_name)
 
@@ -40,6 +43,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
