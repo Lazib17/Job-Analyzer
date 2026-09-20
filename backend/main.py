@@ -49,14 +49,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
+# Register routers (plain paths for local uvicorn, /api for Vercel)
 app.include_router(auth.router)
 app.include_router(resume.router)
 app.include_router(jobs.router)
 app.include_router(analysis.router)
+app.include_router(auth.router, prefix="/api", include_in_schema=False)
+app.include_router(resume.router, prefix="/api", include_in_schema=False)
+app.include_router(jobs.router, prefix="/api", include_in_schema=False)
+app.include_router(analysis.router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/")
+@app.get("/api")
 async def root():
     """Health check endpoint."""
     return {
@@ -67,5 +72,6 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "healthy"}
