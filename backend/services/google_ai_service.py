@@ -55,18 +55,24 @@ class GoogleAIService:
         self.model_name = settings.google_model
         self.fallback_models = [
             settings.google_model,
-            "gemini-1.5-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-1.5-flash-8b",
+            "gemini-3.5-flash",
+            "gemini-3.8-flash",
+            "gemini-3.5-flash-lite",
         ]
 
-    def _get_model(self, model_name: str) -> genai.GenerativeModel:
+    def _get_model(self, model_name: str, system_instruction: str = ANALYSIS_SYSTEM_PROMPT) -> genai.GenerativeModel:
         return genai.GenerativeModel(
             model_name=model_name,
-            system_instruction=ANALYSIS_SYSTEM_PROMPT,
+            system_instruction=system_instruction,
         )
 
-    def _generate_with_fallback(self, prompt: str) -> str:
+    def _generate_with_fallback(
+        self,
+        prompt: str,
+        system_instruction: str = ANALYSIS_SYSTEM_PROMPT,
+        max_output_tokens: int = 1024,
+        temperature: float = 0.3,
+    ) -> str:
         """Try primary model, then fallbacks on quota errors."""
         seen: set[str] = set()
         last_error: Optional[Exception] = None
@@ -76,12 +82,12 @@ class GoogleAIService:
                 continue
             seen.add(model_name)
             try:
-                model = self._get_model(model_name)
+                model = self._get_model(model_name, system_instruction)
                 response = model.generate_content(
                     prompt,
                     generation_config=genai.GenerationConfig(
-                        temperature=0.3,
-                        max_output_tokens=1024,
+                        temperature=temperature,
+                        max_output_tokens=max_output_tokens,
                         response_mime_type="application/json",
                     ),
                 )
@@ -89,8 +95,16 @@ class GoogleAIService:
             except Exception as exc:
                 last_error = exc
                 err = str(exc).lower()
-                if "429" in err or "quota" in err or "resourceexhausted" in err:
-                    logger.warning("Model %s quota exceeded, trying fallback...", model_name)
+                unavailable = (
+                    "429" in err
+                    or "quota" in err
+                    or "resourceexhausted" in err
+                    or "404" in err
+                    or "not found" in err
+                    or "not supported" in err
+                )
+                if unavailable:
+                    logger.warning("Model %s unavailable, trying fallback...", model_name)
                     continue
                 raise
 
@@ -105,6 +119,23 @@ class GoogleAIService:
         if fence_match:
             cleaned = fence_match.group(1)
         return json.loads(cleaned)
+
+    def generate_json(
+        self,
+        prompt: str,
+        *,
+        system_instruction: str,
+        max_output_tokens: int = 4096,
+        temperature: float = 0.3,
+    ) -> dict:
+        """Ask Gemini for a JSON object. Callers validate the shape themselves."""
+        raw_text = self._generate_with_fallback(
+            prompt,
+            system_instruction=system_instruction,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+        )
+        return self._parse_json_response(raw_text)
 
     async def analyze_job(
         self,

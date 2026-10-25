@@ -40,6 +40,11 @@
     @apply antialiased text-foreground bg-surface-950 font-sans;
   }
 
+  select option {
+    color: #111827;
+    background-color: #ffffff;
+  }
+
   ::selection {
     background: rgba(20, 184, 166, 0.35);
     color: #fff;

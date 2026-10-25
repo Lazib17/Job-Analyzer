@@ -16,8 +16,8 @@ from models.scraped_job import ScrapedJob
 
 logger = logging.getLogger(__name__)
 
-WANTEDLY_SEARCH_URL = "https://www.wantedly.com/search?type=projects&q={query}"
-WANTEDLY_ENGINEER_URL = "https://www.wantedly.com/search?type=projects&occupation_types%5B%5D=engineer"
+WANTEDLY_SEARCH_URL = "https://www.wantedly.com/projects?q={query}"
+WANTEDLY_ENGINEER_URL = "https://www.wantedly.com/projects?q=engineer"
 
 PRIORITY_KEYWORDS = [
     "software engineer",

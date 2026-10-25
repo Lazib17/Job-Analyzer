@@ -6,7 +6,40 @@ import {
   FadeInSection,
   PageHeader,
 } from '../components/layout/AppShell';
-import { VetraButton, VetraCard, VetraInput, VetraSelect } from '../components/ui/vetra-ui';
+import { VetraButton, VetraCard, VetraSelect } from '../components/ui/vetra-ui';
+
+const JOB_TITLES = [
+  'Software Engineer',
+  'Data Analyst',
+  'AI / Machine Learning Engineer',
+  'Sales Representative',
+  'Marketing Specialist',
+  'Business Analyst',
+  'Business Development Associate',
+  'Human Resources Specialist',
+  'Accountant / Financial Analyst',
+  'Customer Support Representative',
+  'Administrative Assistant',
+  'Project Manager',
+  'Mechanical Engineer',
+  'Electrical Engineer',
+  'Civil Engineer',
+  'Graphic / UI Designer',
+  'Translator / Interpreter',
+  'Teacher / English Instructor',
+  'Hotel / Hospitality Staff',
+  'Supply Chain / Logistics Specialist',
+];
+
+const WORK_ARRANGEMENTS = ['Remote', 'On-site', 'Hybrid'];
+
+const JAPANESE_LEVELS = [
+  'Native',
+  'Business level',
+  'Intermediate',
+  'Daily conversation level',
+  'No Japanese',
+];
 
 export default function JobSearch() {
   const navigate = useNavigate();
@@ -14,7 +47,8 @@ export default function JobSearch() {
     job_title: '',
     location: 'Remote',
     experience_level: '',
-    remote_only: false,
+    japanese_level: '',
+    remote_only: true,
     max_results: 25,
   });
   const [loading, setLoading] = useState(false);
@@ -49,22 +83,56 @@ export default function JobSearch() {
         <FadeInSection delay={0.15}>
           <VetraCard>
             <form onSubmit={handleSubmit} className="space-y-5">
-              <VetraInput
+              <VetraSelect
                 label="Job title"
-                type="text"
-                placeholder="Software Engineer, Data Analyst..."
                 value={form.job_title}
                 onChange={(e) => setForm({ ...form, job_title: e.target.value })}
                 required
-              />
+              >
+                <option value="" disabled>
+                  Choose a job title
+                </option>
+                {JOB_TITLES.map((title) => (
+                  <option key={title} value={title}>
+                    {title}
+                  </option>
+                ))}
+              </VetraSelect>
 
-              <VetraInput
+              <VetraSelect
                 label="Location"
-                type="text"
-                placeholder="Tokyo, Remote, London..."
                 value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-              />
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    location: e.target.value,
+                    remote_only: e.target.value === 'Remote',
+                  })
+                }
+                required
+              >
+                {WORK_ARRANGEMENTS.map((arrangement) => (
+                  <option key={arrangement} value={arrangement}>
+                    {arrangement}
+                  </option>
+                ))}
+              </VetraSelect>
+
+              <VetraSelect
+                label="Japanese level"
+                value={form.japanese_level}
+                onChange={(e) => setForm({ ...form, japanese_level: e.target.value })}
+                required
+              >
+                <option value="" disabled>
+                  Choose a Japanese level
+                </option>
+                {JAPANESE_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </VetraSelect>
 
               <VetraSelect
                 label="Experience level"
@@ -78,19 +146,6 @@ export default function JobSearch() {
                 <option value="senior">Senior</option>
                 <option value="director">Director</option>
               </VetraSelect>
-
-              <div className="flex items-center gap-3 pt-1">
-                <input
-                  type="checkbox"
-                  id="remote"
-                  checked={form.remote_only}
-                  onChange={(e) => setForm({ ...form, remote_only: e.target.checked })}
-                  className="w-4 h-4 rounded border-white/20 bg-white/5 accent-violet-500"
-                />
-                <label htmlFor="remote" className="text-sm text-white/50">
-                  Remote jobs only
-                </label>
-              </div>
 
               <div className="space-y-2">
                 <label className="label">Max results: {form.max_results}</label>

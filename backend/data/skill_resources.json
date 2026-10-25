@@ -1,0 +1,498 @@
+{
+  "javascript": [
+    {
+      "title": "JavaScript Guide",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+      "source": "MDN",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 60
+    },
+    {
+      "title": "JavaScript language overview",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Introduction",
+      "source": "MDN",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "typescript": [
+    {
+      "title": "TypeScript documentation",
+      "url": "https://www.typescriptlang.org/docs/",
+      "source": "TypeScript",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "TypeScript for the new programmer",
+      "url": "https://www.typescriptlang.org/docs/handbook/typescript-from-scratch.html",
+      "source": "TypeScript",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 40
+    }
+  ],
+  "python": [
+    {
+      "title": "Python tutorial",
+      "url": "https://docs.python.org/3/tutorial/index.html",
+      "source": "Python documentation",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 90
+    },
+    {
+      "title": "Python standard library index",
+      "url": "https://docs.python.org/3/library/index.html",
+      "source": "Python documentation",
+      "type": "docs",
+      "difficulty": "intermediate",
+      "estimated_minutes": 40
+    }
+  ],
+  "react": [
+    {
+      "title": "Quick start",
+      "url": "https://react.dev/learn",
+      "source": "React",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 45
+    },
+    {
+      "title": "Describing the UI",
+      "url": "https://react.dev/learn/describing-the-ui",
+      "source": "React",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    }
+  ],
+  "nodejs": [
+    {
+      "title": "Node.js learn guides",
+      "url": "https://nodejs.org/en/learn",
+      "source": "Node.js",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 40
+    },
+    {
+      "title": "Node.js API synopsis",
+      "url": "https://nodejs.org/api/synopsis.html",
+      "source": "Node.js",
+      "type": "docs",
+      "difficulty": "intermediate",
+      "estimated_minutes": 20
+    }
+  ],
+  "postgresql": [
+    {
+      "title": "PostgreSQL tutorial",
+      "url": "https://www.postgresql.org/docs/current/tutorial-start.html",
+      "source": "PostgreSQL",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 40
+    },
+    {
+      "title": "The SQL language",
+      "url": "https://www.postgresql.org/docs/current/tutorial-sql.html",
+      "source": "PostgreSQL",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 35
+    }
+  ],
+  "sql": [
+    {
+      "title": "SQL tutorial",
+      "url": "https://www.postgresql.org/docs/current/tutorial-sql.html",
+      "source": "PostgreSQL",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 35
+    },
+    {
+      "title": "SQLite language reference",
+      "url": "https://www.sqlite.org/lang.html",
+      "source": "SQLite",
+      "type": "docs",
+      "difficulty": "intermediate",
+      "estimated_minutes": 40
+    }
+  ],
+  "html": [
+    {
+      "title": "HTML",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTML",
+      "source": "MDN",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "HTML elements reference",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTML/Element",
+      "source": "MDN",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "css": [
+    {
+      "title": "CSS",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/CSS",
+      "source": "MDN",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "CSS selectors",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors",
+      "source": "MDN",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "git": [
+    {
+      "title": "Pro Git",
+      "url": "https://git-scm.com/book/en/v2",
+      "source": "Git",
+      "type": "book chapter",
+      "difficulty": "beginner",
+      "estimated_minutes": 60
+    },
+    {
+      "title": "Git tutorial",
+      "url": "https://git-scm.com/docs/gittutorial",
+      "source": "Git",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    }
+  ],
+  "docker": [
+    {
+      "title": "Docker get started",
+      "url": "https://docs.docker.com/get-started/",
+      "source": "Docker",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 45
+    },
+    {
+      "title": "Docker overview",
+      "url": "https://docs.docker.com/get-started/docker-overview/",
+      "source": "Docker",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 20
+    }
+  ],
+  "kubernetes": [
+    {
+      "title": "Learn Kubernetes basics",
+      "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/",
+      "source": "Kubernetes",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 50
+    },
+    {
+      "title": "Kubernetes concepts overview",
+      "url": "https://kubernetes.io/docs/concepts/overview/",
+      "source": "Kubernetes",
+      "type": "docs",
+      "difficulty": "intermediate",
+      "estimated_minutes": 30
+    }
+  ],
+  "go": [
+    {
+      "title": "A tour of Go",
+      "url": "https://go.dev/tour/",
+      "source": "Go",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 50
+    },
+    {
+      "title": "Getting started with Go",
+      "url": "https://go.dev/doc/tutorial/getting-started",
+      "source": "Go",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "java": [
+    {
+      "title": "The Java tutorials",
+      "url": "https://docs.oracle.com/javase/tutorial/",
+      "source": "Oracle",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 60
+    },
+    {
+      "title": "Learn Java",
+      "url": "https://dev.java/learn/",
+      "source": "Java",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 40
+    }
+  ],
+  "aws": [
+    {
+      "title": "Overview of Amazon Web Services",
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html",
+      "source": "AWS",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "Getting started with AWS",
+      "url": "https://aws.amazon.com/getting-started/",
+      "source": "AWS",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "django": [
+    {
+      "title": "Writing your first Django app",
+      "url": "https://docs.djangoproject.com/en/stable/intro/tutorial01/",
+      "source": "Django",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 45
+    },
+    {
+      "title": "Django at a glance",
+      "url": "https://docs.djangoproject.com/en/stable/intro/overview/",
+      "source": "Django",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 20
+    }
+  ],
+  "fastapi": [
+    {
+      "title": "FastAPI tutorial",
+      "url": "https://fastapi.tiangolo.com/tutorial/",
+      "source": "FastAPI",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 40
+    },
+    {
+      "title": "First steps",
+      "url": "https://fastapi.tiangolo.com/tutorial/first-steps/",
+      "source": "FastAPI",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 20
+    }
+  ],
+  "vue": [
+    {
+      "title": "Introduction",
+      "url": "https://vuejs.org/guide/introduction.html",
+      "source": "Vue",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    },
+    {
+      "title": "Quick start",
+      "url": "https://vuejs.org/guide/quick-start.html",
+      "source": "Vue",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    }
+  ],
+  "nextjs": [
+    {
+      "title": "Next.js documentation",
+      "url": "https://nextjs.org/docs",
+      "source": "Next.js",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "Getting started",
+      "url": "https://nextjs.org/docs/app/getting-started",
+      "source": "Next.js",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 35
+    }
+  ],
+  "pandas": [
+    {
+      "title": "Getting started",
+      "url": "https://pandas.pydata.org/docs/getting_started/index.html",
+      "source": "pandas",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 30
+    },
+    {
+      "title": "10 minutes to pandas",
+      "url": "https://pandas.pydata.org/docs/user_guide/10min.html",
+      "source": "pandas",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 25
+    }
+  ],
+  "c#": [
+    {
+      "title": "A tour of C#",
+      "url": "https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/",
+      "source": "Microsoft Learn",
+      "type": "guide",
+      "difficulty": "beginner",
+      "estimated_minutes": 35
+    },
+    {
+      "title": "C# documentation",
+      "url": "https://learn.microsoft.com/en-us/dotnet/csharp/",
+      "source": "Microsoft Learn",
+      "type": "docs",
+      "difficulty": "beginner",
+      "estimated_minutes": 20
+    }
+  ],
+  "japanese": {
+    "N5": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "beginner",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Hiragana",
+        "url": "https://guidetojapanese.org/learn/grammar/hiragana",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "beginner",
+        "estimated_minutes": 30
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "beginner",
+        "estimated_minutes": 40
+      }
+    ],
+    "N4": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "beginner",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "beginner",
+        "estimated_minutes": 45
+      }
+    ],
+    "N3": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 50
+      }
+    ],
+    "N2": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 50
+      }
+    ],
+    "N1": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 50
+      }
+    ],
+    "Native": [
+      {
+        "title": "JLPT levels",
+        "url": "https://www.jlpt.jp/e/about/levelsummary.html",
+        "source": "JLPT",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 15
+      },
+      {
+        "title": "Grammar guide",
+        "url": "https://guidetojapanese.org/learn/grammar",
+        "source": "Tae Kim's Guide to Japanese",
+        "type": "guide",
+        "difficulty": "intermediate",
+        "estimated_minutes": 40
+      }
+    ]
+  }
+}

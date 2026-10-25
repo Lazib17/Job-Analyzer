@@ -13,3 +13,6 @@ backend/local_data.db
 *.db
 .cursor/
 
+.vercel
+.env*
+youutubekey.png

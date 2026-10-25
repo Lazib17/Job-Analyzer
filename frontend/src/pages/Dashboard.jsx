@@ -19,6 +19,8 @@ import {
   SectionTitle,
 } from '../components/layout/AppShell';
 import JobCard from '../components/ui/JobCard';
+import ImproveSkills from '../components/ImproveSkills';
+import CvPreview from '../components/ui/CvPreview';
 import ResumeDropZone from '../components/ui/ResumeDropZone';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import StatCard from '../components/ui/StatCard';
@@ -51,6 +53,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [filter, setFilter] = useState('all');
+  const [viewingCv, setViewingCv] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -209,7 +212,15 @@ export default function Dashboard() {
             uploading={uploading}
             progress={progress}
             onFile={handleResumeFile}
+            onView={() => setViewingCv(true)}
           />
+          {viewingCv && resume && (
+            <CvPreview resume={resume} onClose={() => setViewingCv(false)} />
+          )}
+        </FadeInSection>
+
+        <FadeInSection>
+          <ImproveSkills hasResume={Boolean(resume)} />
         </FadeInSection>
 
         <FadeInSection>

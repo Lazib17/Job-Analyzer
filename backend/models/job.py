@@ -3,10 +3,10 @@ Job-related Pydantic models.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class JobBase(BaseModel):
@@ -37,6 +37,15 @@ class JobResponse(JobBase):
         from_attributes = True
 
 
+JAPANESE_SEARCH_LEVELS = (
+    "Native",
+    "Business level",
+    "Intermediate",
+    "Daily conversation level",
+    "No Japanese",
+)
+
+
 class JobSearchRequest(BaseModel):
     """User preferences for LinkedIn job search."""
     job_title: str = Field(..., min_length=1, description="Desired job title")
@@ -46,6 +55,22 @@ class JobSearchRequest(BaseModel):
     )
     remote_only: bool = False
     max_results: int = Field(default=25, ge=1, le=50)
+    japanese_level: str = Field(
+        default="No Japanese",
+        description="Highest Japanese level the user can work in",
+    )
+
+    @field_validator("japanese_level")
+    @classmethod
+    def _normalize_japanese_level(cls, value: str) -> str:
+        cleaned = value.strip()
+        allowed = {item.lower(): item for item in JAPANESE_SEARCH_LEVELS}
+        match = allowed.get(cleaned.lower())
+        if match is None:
+            raise ValueError(
+                "japanese_level must be one of: " + ", ".join(JAPANESE_SEARCH_LEVELS)
+            )
+        return match
 
 
 class JobWithAnalysis(JobResponse):
@@ -56,6 +81,24 @@ class JobWithAnalysis(JobResponse):
     improvement_suggestions: Optional[str] = None
     ai_reasoning: Optional[str] = None
     analysis_id: Optional[UUID] = None
+
+
+class JobTranslateRequest(BaseModel):
+    language: Literal["en", "ja"]
+
+
+class JobTranslationResponse(BaseModel):
+    language: Literal["en", "ja"]
+    job_title: str = ""
+    company: str = ""
+    location: Optional[str] = None
+    salary: Optional[str] = None
+    description: Optional[str] = None
+    requirements: Optional[str] = None
+    ai_reasoning: Optional[str] = None
+    improvement_suggestions: Optional[str] = None
+    matching_skills: list[str] = []
+    missing_skills: list[str] = []
 
 
 class JobFilterParams(BaseModel):

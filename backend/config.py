@@ -26,8 +26,11 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     google_model: str = "gemini-1.5-flash"
 
+    # YouTube Data API v3. Backend only — never send this to the frontend.
+    youtube_api_key: str = ""
+
     # Google OAuth (Sign in with Google)
-    google_client_id: str = ""
+    google_client_id: str = "373469100409-vg1sqva671mp39mo9qjpa0of2dfjlrfb.apps.googleusercontent.com"
 
     # LinkedIn scraping
     linkedin_email: str = ""

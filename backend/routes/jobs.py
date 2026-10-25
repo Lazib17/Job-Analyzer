@@ -3,6 +3,7 @@ Job search, listing, and favorites routes.
 """
 
 import asyncio
+import json
 import logging
 from typing import Optional
 from uuid import UUID
@@ -10,24 +11,40 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from database import fetch_all, fetch_one, insert_row, update_row
-from models.job import JobResponse, JobSearchRequest, JobWithAnalysis
+from services.google_ai_service import google_ai_service
+from models.job import (
+    JobResponse,
+    JobSearchRequest,
+    JobTranslateRequest,
+    JobTranslationResponse,
+    JobWithAnalysis,
+)
 from models.scraped_job import ScrapedJob
 from models.user import UserResponse
 from utils.auth import get_current_user
+from utils.japanese_search import job_fits_japanese_level
 from utils.job_merge import merge_and_deduplicate
 from utils.job_storage import scraped_job_to_db_row
+from utils.job_translation import (
+    cached_translation,
+    merge_translation,
+    page_payload,
+    payload_has_text,
+    store_translation,
+)
+from utils.playwright_runner import run_on_playwright_loop
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Jobs"])
 
 
-async def _safe_scrape(scraper_name: str, coro) -> list:
-    """Run a scraper coroutine without failing the entire pipeline."""
+async def _safe_scrape(scraper_name: str, factory) -> list:
+    """Run a scraper without failing the entire pipeline."""
     try:
-        return await coro
-    except Exception as exc:
-        logger.error("%s scraper failed: %s", scraper_name, exc)
+        return await run_on_playwright_loop(factory)
+    except Exception:
+        logger.exception("%s scraper failed", scraper_name)
         return []
 
 
@@ -74,7 +91,7 @@ async def search_jobs(
     mynavi_jobs, career_cross_jobs, wantedly_jobs, gaijinpot_jobs = await asyncio.gather(
         _safe_scrape(
             "Mynavi",
-            mynavi_scraper.search_jobs(
+            lambda: mynavi_scraper.search_jobs(
                 job_title=search.job_title,
                 location=search.location,
                 max_results=per_source_limit,
@@ -82,7 +99,7 @@ async def search_jobs(
         ),
         _safe_scrape(
             "CareerCross",
-            career_cross_scraper.search_jobs(
+            lambda: career_cross_scraper.search_jobs(
                 job_title=search.job_title,
                 location=search.location,
                 max_results=per_source_limit,
@@ -90,7 +107,7 @@ async def search_jobs(
         ),
         _safe_scrape(
             "Wantedly",
-            wantedly_scraper.search_jobs(
+            lambda: wantedly_scraper.search_jobs(
                 job_title=search.job_title,
                 location=search.location,
                 max_results=per_source_limit,
@@ -98,7 +115,7 @@ async def search_jobs(
         ),
         _safe_scrape(
             "GaijinPot",
-            gaijinpot_scraper.search_jobs(
+            lambda: gaijinpot_scraper.search_jobs(
                 job_title=search.job_title,
                 location=search.location,
                 max_results=per_source_limit,
@@ -118,7 +135,11 @@ async def search_jobs(
         + list(wantedly_jobs)
         + list(gaijinpot_jobs)
     )
-    merged_jobs = merge_and_deduplicate(all_jobs)
+    merged_jobs = [
+        job
+        for job in merge_and_deduplicate(all_jobs)
+        if job_fits_japanese_level(job.japanese_level, search.japanese_level)
+    ]
 
     saved_jobs: list[JobResponse] = []
     for job in merged_jobs:
@@ -171,6 +192,57 @@ async def get_job(
         job_data.analysis_id = analysis.get("id")
 
     return job_data
+
+
+@router.post("/jobs/{job_id}/translate", response_model=JobTranslationResponse)
+async def translate_job_page(
+    job_id: UUID,
+    body: JobTranslateRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Translate the job page into English or Japanese. The saved job stays unchanged."""
+    job = fetch_one("jobs", {"id": str(job_id), "user_id": str(current_user.id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    analysis = fetch_one("analysis", {"job_id": str(job_id), "user_id": str(current_user.id)})
+    source = page_payload(job, analysis)
+    if not payload_has_text(source):
+        return JobTranslationResponse(language=body.language, **source)
+
+    cached = cached_translation(source, body.language)
+    if cached:
+        return JobTranslationResponse(language=body.language, **cached)
+
+    language_name = "English" if body.language == "en" else "Japanese"
+    prompt = (
+        f"Translate every string into {language_name}.\n"
+        "Keep company names, product names, and URLs as they are.\n"
+        "Do not summarize, omit, or add facts.\n"
+        "Return JSON with these keys only: job_title, company, location, salary, "
+        "description, requirements, ai_reasoning, improvement_suggestions, "
+        "matching_skills, missing_skills.\n"
+        "matching_skills and missing_skills are arrays of strings.\n\n"
+        + json.dumps(source, ensure_ascii=False)
+    )
+    try:
+        translated = await asyncio.to_thread(
+            google_ai_service.generate_json,
+            prompt,
+            system_instruction=(
+                "You translate job pages. Return valid JSON only. "
+                "Preserve the meaning of the source text."
+            ),
+            max_output_tokens=8192,
+            temperature=0.2,
+        )
+    except Exception as exc:
+        logger.exception("Job page translation failed")
+        raise HTTPException(status_code=502, detail="Could not translate this page. Try again.") from exc
+
+    merged = merge_translation(source, translated if isinstance(translated, dict) else {})
+    store_translation(source, body.language, merged)
+    return JobTranslationResponse(language=body.language, **merged)
 
 
 @router.post("/jobs/{job_id}/favorite", response_model=JobResponse)

@@ -3,7 +3,7 @@ import { Check, FileUp, LoaderCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-export default function ResumeDropZone({ resume, uploading, progress, onFile }) {
+export default function ResumeDropZone({ resume, uploading, progress, onFile, onView }) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleFiles = useCallback(
@@ -36,6 +36,27 @@ export default function ResumeDropZone({ resume, uploading, progress, onFile }) 
                 {resume.extracted_text.length > 220 ? '…' : ''}
               </p>
             )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onView}
+                className="rounded-xl bg-accent-gradient px-3.5 py-2 text-xs font-semibold text-white"
+              >
+                View full CV
+              </button>
+              <label className="cursor-pointer rounded-xl border border-white/15 px-3.5 py-2 text-xs font-medium text-white/80 hover:bg-white/[0.06]">
+                Replace CV
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFiles(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
           </div>
         </div>
       </motion.div>

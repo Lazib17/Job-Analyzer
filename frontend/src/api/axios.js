@@ -59,11 +59,54 @@ export const uploadResume = (file) => {
   });
 };
 export const getResume = () => api.get('/resume');
+export const getJapaneseLevel = () => api.get('/profile/japanese-level');
+export const updateJapaneseLevel = (japanese_level) =>
+  api.put('/profile/japanese-level', { japanese_level });
+export const getLearningSkills = () => api.get('/learning/skills');
+export const getLearningResources = (skill) => api.get('/learning/resources', { params: { skill } });
+export const getLearningPlans = () => api.get('/learning/plans');
+export const getLearningPlan = (id) => api.get(`/learning/plans/${id}`);
+export const createLearningPlan = (data) => api.post('/learning/plans', data);
+export const updateLearningTask = (planId, taskId, done) =>
+  api.patch(`/learning/plans/${planId}/tasks/${taskId}`, { done });
+
+export async function openResumeFile() {
+  try {
+    const response = await api.get('/resume/file', { responseType: 'blob' });
+    const type = response.headers['content-type'] || 'application/octet-stream';
+    const blob = new Blob([response.data], { type });
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = type.includes('pdf') ? 'cv.pdf' : 'cv.docx';
+      link.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    let detail = 'Could not open the original CV file.';
+    const data = err.response?.data;
+    if (data instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await data.text());
+        if (typeof parsed.detail === 'string') detail = parsed.detail;
+      } catch {
+        /* keep the fallback message */
+      }
+    } else if (typeof data?.detail === 'string') {
+      detail = data.detail;
+    }
+    throw new Error(detail);
+  }
+}
 
 // Jobs
 export const searchJobs = (data) => api.post('/search-jobs', data);
 export const getJobs = () => api.get('/jobs');
 export const getJob = (id) => api.get(`/jobs/${id}`);
+export const translateJobPage = (id, language) =>
+  api.post(`/jobs/${id}/translate`, { language });
 export const toggleFavorite = (id) => api.post(`/jobs/${id}/favorite`);
 export const getSearchHistory = () => api.get('/search-history');
 

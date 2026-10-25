@@ -5,6 +5,7 @@ import {
   FadeInSection,
   PageHeader,
 } from '../components/layout/AppShell';
+import CvPreview from '../components/ui/CvPreview';
 import { VetraButton, VetraCard } from '../components/ui/vetra-ui';
 
 export default function UploadResume() {
@@ -13,6 +14,7 @@ export default function UploadResume() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [viewing, setViewing] = useState(false);
 
   useEffect(() => {
     getResume()
@@ -43,8 +45,10 @@ export default function UploadResume() {
     try {
       const { data } = await uploadResume(file);
       setExisting(data.resume);
-      setMessage('Resume uploaded and parsed successfully.');
+      setMessage(existing ? 'CV replaced successfully.' : 'Resume uploaded and parsed successfully.');
       setFile(null);
+      const input = document.getElementById('file-input');
+      if (input) input.value = '';
     } catch (err) {
       setError(err.response?.data?.detail || 'Upload failed');
     } finally {
@@ -64,10 +68,21 @@ export default function UploadResume() {
         {existing && (
           <FadeInSection delay={0.1}>
             <VetraCard className="mb-6 border-emerald-500/10 bg-emerald-500/[0.03]">
-              <p className="text-white/80 font-medium">Resume on file</p>
-              <p className="text-white/40 text-sm mt-2">
-                Uploaded {new Date(existing.uploaded_at).toLocaleDateString()}
-              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-white/80 font-medium">Resume on file</p>
+                  <p className="text-white/40 text-sm mt-2">
+                    Uploaded {new Date(existing.uploaded_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewing(true)}
+                  className="shrink-0 rounded-xl border border-white/15 px-3.5 py-2 text-xs font-medium text-white/80 hover:bg-white/[0.06]"
+                >
+                  View full CV
+                </button>
+              </div>
               {existing.extracted_text && (
                 <p className="text-white/30 text-xs mt-3 leading-relaxed line-clamp-3">
                   {existing.extracted_text.slice(0, 200)}...
@@ -85,7 +100,7 @@ export default function UploadResume() {
                 onClick={() => document.getElementById('file-input').click()}
               >
                 <p className="text-white/70 font-medium">
-                  {file ? file.name : 'Click to select your resume'}
+                  {file ? file.name : existing ? 'Click to select a replacement CV' : 'Click to select your resume'}
                 </p>
                 <p className="text-white/30 text-sm mt-2">PDF or DOCX, max 10MB</p>
                 <input
@@ -114,11 +129,15 @@ export default function UploadResume() {
                 loading={loading}
                 className="w-full mt-6 py-3"
               >
-                {loading ? 'Uploading...' : 'Upload Resume'}
+                {loading ? 'Uploading...' : existing ? 'Replace CV' : 'Upload Resume'}
               </VetraButton>
             </form>
           </VetraCard>
         </FadeInSection>
+
+        {viewing && existing && (
+          <CvPreview resume={existing} onClose={() => setViewing(false)} />
+        )}
       </div>
     </AppShell>
   );

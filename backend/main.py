@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import init_database
-from routes import analysis, auth, jobs, resume
+from routes import analysis, auth, jobs, learning, profile, resume
 
 # Configure logging
 logging.basicConfig(
@@ -54,10 +54,14 @@ app.include_router(auth.router)
 app.include_router(resume.router)
 app.include_router(jobs.router)
 app.include_router(analysis.router)
+app.include_router(profile.router)
+app.include_router(learning.router)
 app.include_router(auth.router, prefix="/api", include_in_schema=False)
 app.include_router(resume.router, prefix="/api", include_in_schema=False)
 app.include_router(jobs.router, prefix="/api", include_in_schema=False)
 app.include_router(analysis.router, prefix="/api", include_in_schema=False)
+app.include_router(profile.router, prefix="/api", include_in_schema=False)
+app.include_router(learning.router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/")

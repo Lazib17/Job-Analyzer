@@ -204,8 +204,7 @@ export default function Landing() {
           transition={{ delay: 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="font-display text-[2.35rem] font-bold leading-[1.08] tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-[5.25rem]"
         >
-          <span className="block">Welcome to Job Analyzer</span>
-          <span className="mt-2 block sm:mt-3">Find your next tech job in Japan, ranked by AI.</span>
+          <span className="block">Welcome to Job analyzer</span>
         </motion.h1>
 
         <motion.p

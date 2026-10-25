@@ -19,7 +19,17 @@ def _db_path() -> Path:
     if os.getenv("VERCEL"):
         return Path("/tmp/local_data.db")
     return Path(__file__).parent / "local_data.db"
-ALLOWED_TABLES = frozenset({"users", "resumes", "jobs", "analysis", "search_history"})
+ALLOWED_TABLES = frozenset({
+    "users",
+    "resumes",
+    "jobs",
+    "analysis",
+    "search_history",
+    "learning_video_cache",
+    "learning_plans",
+    "learning_plan_weeks",
+    "learning_plan_tasks",
+})
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -28,6 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT,
     google_id TEXT,
+    japanese_level TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -89,6 +100,53 @@ CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_user_id ON analysis(user_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_job_id ON analysis(job_id);
 CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
+
+CREATE TABLE IF NOT EXISTS learning_video_cache (
+    id TEXT PRIMARY KEY,
+    skill_key TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    UNIQUE(skill_key, stage)
+);
+
+CREATE TABLE IF NOT EXISTS learning_plans (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    skill TEXT NOT NULL,
+    duration_weeks INTEGER NOT NULL,
+    hours_per_week INTEGER NOT NULL,
+    start_date TEXT,
+    study_days TEXT,
+    japanese_level TEXT,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS learning_plan_weeks (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    week_number INTEGER NOT NULL,
+    goal TEXT NOT NULL,
+    UNIQUE(plan_id, week_number),
+    FOREIGN KEY (plan_id) REFERENCES learning_plans(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS learning_plan_tasks (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL,
+    week_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    task_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    resource_id TEXT,
+    resource_snapshot TEXT,
+    estimated_minutes INTEGER NOT NULL,
+    done INTEGER DEFAULT 0,
+    FOREIGN KEY (plan_id) REFERENCES learning_plans(id) ON DELETE CASCADE,
+    FOREIGN KEY (week_id) REFERENCES learning_plan_weeks(id) ON DELETE CASCADE
+);
 """
 
 
@@ -112,6 +170,7 @@ def init_local_db() -> None:
     with sqlite3.connect(path) as conn:
         conn.executescript(SCHEMA)
         _migrate_google_auth(conn)
+        _migrate_japanese_level(conn)
         conn.commit()
     logger.info("Local SQLite database ready at %s", path)
 
@@ -164,7 +223,19 @@ def _migrate_google_auth(conn: sqlite3.Connection) -> None:
     logger.info("Migrated users.password_hash to allow NULL")
 
 
+def _migrate_japanese_level(conn: sqlite3.Connection) -> None:
+    """Add users.japanese_level on databases created before that column existed."""
+    info = conn.execute("PRAGMA table_info(users)").fetchall()
+    if not info:
+        return
+    columns = {row[1] for row in info}
+    if "japanese_level" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN japanese_level TEXT")
+        logger.info("Added users.japanese_level column")
+
+
 def _get_connection() -> sqlite3.Connection:
+    init_local_db()
     conn = sqlite3.connect(_db_path())
     conn.row_factory = sqlite3.Row
     return conn
@@ -172,10 +243,10 @@ def _get_connection() -> sqlite3.Connection:
 
 def _normalize_row(row: sqlite3.Row) -> dict[str, Any]:
     data = dict(row)
-    for key in ("is_favorite", "visa_sponsorship", "remote_option"):
+    for key in ("is_favorite", "visa_sponsorship", "remote_option", "done"):
         if key in data and data[key] is not None:
             data[key] = bool(data[key])
-    for key in ("missing_skills", "matching_skills"):
+    for key in ("missing_skills", "matching_skills", "payload", "study_days", "resource_snapshot"):
         if key in data and isinstance(data[key], str):
             try:
                 data[key] = json.loads(data[key])
@@ -195,16 +266,18 @@ def _prepare_insert(table: str, data: dict[str, Any]) -> dict[str, Any]:
         "jobs": "created_at",
         "analysis": "created_at",
         "search_history": "searched_at",
+        "learning_video_cache": "fetched_at",
+        "learning_plans": "created_at",
     }
     ts_field = timestamp_defaults.get(table)
     if ts_field and ts_field not in prepared:
         prepared[ts_field] = _now_iso()
 
-    for key in ("is_favorite", "visa_sponsorship", "remote_option"):
+    for key in ("is_favorite", "visa_sponsorship", "remote_option", "done"):
         if key in prepared and isinstance(prepared[key], bool):
             prepared[key] = int(prepared[key])
 
-    for key in ("missing_skills", "matching_skills"):
+    for key in ("missing_skills", "matching_skills", "payload", "study_days", "resource_snapshot"):
         if key in prepared and not isinstance(prepared[key], str):
             prepared[key] = json.dumps(prepared[key], ensure_ascii=False)
 
@@ -264,11 +337,11 @@ def local_update_row(table: str, row_id: str, data: dict[str, Any]) -> dict:
     _validate_table(table)
     prepared = data.copy()
 
-    for key in ("is_favorite", "visa_sponsorship", "remote_option"):
+    for key in ("is_favorite", "visa_sponsorship", "remote_option", "done"):
         if key in prepared and isinstance(prepared[key], bool):
             prepared[key] = int(prepared[key])
 
-    for key in ("missing_skills", "matching_skills"):
+    for key in ("missing_skills", "matching_skills", "payload", "study_days", "resource_snapshot"):
         if key in prepared and not isinstance(prepared[key], str):
             prepared[key] = json.dumps(prepared[key], ensure_ascii=False)
 

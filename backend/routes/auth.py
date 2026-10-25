@@ -89,8 +89,13 @@ async def google_login(body: GoogleAuthRequest):
     email = profile["email"]
     name = profile["name"]
 
+    user = None
+    if google_id:
+        try:
+            user = fetch_one("users", {"google_id": google_id})
+        except Exception as exc:
+            logger.warning("google_id lookup skipped (run supabase/migration_google_auth.sql): %s", exc)
     try:
-        user = fetch_one("users", {"google_id": google_id}) if google_id else None
         if not user:
             user = fetch_one("users", {"email": email})
     except Exception as exc:
@@ -106,18 +111,29 @@ async def google_login(body: GoogleAuthRequest):
                     detail="This email is already linked to a different Google account",
                 )
             if not existing_google and google_id:
-                user = update_row("users", str(user["id"]), {"google_id": google_id}) or user
-                user["google_id"] = google_id
+                try:
+                    user = update_row("users", str(user["id"]), {"google_id": google_id}) or user
+                    user["google_id"] = google_id
+                except Exception as exc:
+                    logger.warning("Could not store google_id: %s", exc)
         else:
-            user = insert_row(
-                "users",
-                {
-                    "name": name,
-                    "email": email,
-                    "password_hash": None,
-                    "google_id": google_id,
-                },
-            )
+            payload = {
+                "name": name,
+                "email": email,
+                "password_hash": None,
+                "google_id": google_id,
+            }
+            try:
+                user = insert_row("users", payload)
+            except Exception as exc:
+                logger.warning("Insert with google_id failed, retrying without it: %s", exc)
+                payload.pop("google_id", None)
+                try:
+                    user = insert_row("users", payload)
+                except Exception as exc2:
+                    logger.warning("Insert with null password failed, retrying with placeholder: %s", exc2)
+                    payload["password_hash"] = hash_password(f"google:{google_id or email}")
+                    user = insert_row("users", payload)
     except HTTPException:
         raise
     except Exception as exc:
