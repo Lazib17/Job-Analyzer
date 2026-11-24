@@ -9,11 +9,13 @@ import {
   FadeInSection,
   PageHeader,
 } from '../components/layout/AppShell';
+import JobBrief from '../components/JobBrief';
 import SkeletonCard from '../components/ui/SkeletonCard';
 
 function platformBadge(platform = '') {
   const key = String(platform).toLowerCase();
   if (key.includes('mynavi')) return 'bg-platform-mynavi/15 text-blue-300 border-platform-mynavi/30';
+  if (key.includes('forum')) return 'bg-platform-careerforum/15 text-indigo-300 border-platform-careerforum/30';
   if (key.includes('career')) return 'bg-platform-careercross/15 text-amber-300 border-platform-careercross/30';
   if (key.includes('wantedly')) return 'bg-platform-wantedly/15 text-rose-300 border-platform-wantedly/30';
   if (key.includes('gaijin')) return 'bg-platform-gaijinpot/15 text-emerald-300 border-platform-gaijinpot/30';
@@ -36,7 +38,7 @@ const COPY = {
     matchedSkills: 'Matched skills',
     missingSkills: 'Missing skills',
     none: 'None listed.',
-    description: 'Job description',
+    description: 'About this role',
     requirements: 'Requirements',
     original: 'View original listing',
     notFound: 'Job not found.',
@@ -61,7 +63,7 @@ const COPY = {
     matchedSkills: '一致したスキル',
     missingSkills: '不足しているスキル',
     none: 'なし',
-    description: '仕事内容',
+    description: 'この仕事について',
     requirements: '応募条件',
     original: '元の求人を見る',
     notFound: '求人が見つかりません。',
@@ -449,7 +451,7 @@ export default function JobDetails() {
           <FadeInSection>
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6 shadow-soft">
               <h2 className="mb-4 font-display text-lg font-semibold text-white">{copy.description}</h2>
-              <p className="whitespace-pre-wrap text-sm leading-7 text-white/60">{textValue(view.description)}</p>
+              <JobBrief job={view} language={language === 'ja' ? 'ja' : 'en'} />
             </div>
           </FadeInSection>
         )}

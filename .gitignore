@@ -12,6 +12,8 @@ dist/
 backend/local_data.db
 *.db
 .cursor/
+.agents/
+skills-lock.json
 
 .vercel
 .env*

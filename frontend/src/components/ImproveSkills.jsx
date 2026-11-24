@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createLearningPlan,
   getJapaneseLevel,
@@ -20,6 +20,56 @@ const TIER_CLASS = {
   Medium: 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200',
   Low: 'border-white/15 bg-white/[0.04] text-white/55',
 };
+
+function planPercent(plan) {
+  const done = plan?.progress?.done || 0;
+  const total = plan?.progress?.total || 0;
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
+function PlanProgress({ plan }) {
+  const { done, total, percent } = planPercent(plan);
+  return (
+    <div className="mt-3">
+      <div className="mb-1 flex items-center justify-between text-xs text-white/45">
+        <span>Completed</span>
+        <span>
+          {done}/{total} · {percent}%
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SavedPlanRow({ plan, onOpen }) {
+  const { done, total, percent } = planPercent(plan);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-xl border border-emerald-300/20 bg-emerald-400/[0.04] px-3 py-2.5 text-left hover:bg-emerald-400/10"
+    >
+      <span className="flex items-center justify-between gap-3 text-sm text-emerald-50">
+        <span>{plan.skill}</span>
+        <span className="text-xs text-emerald-100/70">
+          {done}/{total}
+        </span>
+      </span>
+      <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10">
+        <span
+          className="block h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+          style={{ width: `${percent}%` }}
+        />
+      </span>
+    </button>
+  );
+}
 
 function errorText(err, fallback) {
   const detail = err?.response?.data?.detail;
@@ -42,6 +92,7 @@ export default function ImproveSkills({ hasResume = false }) {
   const [builderError, setBuilderError] = useState('');
   const [activePlan, setActivePlan] = useState(null);
   const [pendingTaskId, setPendingTaskId] = useState(null);
+  const planRequest = useRef(null);
 
   const loadSkills = async () => {
     const { data } = await getLearningSkills();
@@ -106,20 +157,50 @@ export default function ImproveSkills({ hasResume = false }) {
     setBuilderSkill(skill);
   };
 
+  const closeBuilder = () => {
+    planRequest.current?.abort();
+    planRequest.current = null;
+    setGenerating(false);
+    setBuilderSkill(null);
+    setBuilderError('');
+  };
+
   const generate = async (payload) => {
+    planRequest.current?.abort();
+    const controller = new AbortController();
+    planRequest.current = controller;
     setGenerating(true);
     setBuilderError('');
     try {
-      const { data } = await createLearningPlan(payload);
+      const { data } = await createLearningPlan(payload, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setActivePlan(data);
       setBuilderSkill(null);
       setPlanNotice('');
-      const { data: saved } = await getLearningPlans();
-      setPlans(saved || []);
+      setPlans((current) => [
+        {
+          id: data.id,
+          skill: data.skill,
+          duration_weeks: data.duration_weeks,
+          hours_per_week: data.hours_per_week,
+          start_date: data.start_date,
+          source: data.source,
+          created_at: data.created_at,
+          progress: data.progress,
+        },
+        ...current.filter((plan) => plan.id !== data.id),
+      ]);
+      getLearningPlans()
+        .then(({ data: saved }) => setPlans(saved || []))
+        .catch(() => {});
     } catch (err) {
+      if (controller.signal.aborted || err?.code === 'ERR_CANCELED') return;
       setBuilderError(errorText(err, 'Could not build a plan.'));
     } finally {
-      setGenerating(false);
+      if (planRequest.current === controller) {
+        planRequest.current = null;
+        setGenerating(false);
+      }
     }
   };
 
@@ -128,6 +209,9 @@ export default function ImproveSkills({ hasResume = false }) {
     try {
       const { data } = await getLearningPlan(id);
       setActivePlan(data);
+      requestAnimationFrame(() => {
+        document.getElementById(`skill-plan-${data.skill}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
     } catch (err) {
       setError(errorText(err, 'Could not open that plan.'));
     }
@@ -148,6 +232,24 @@ export default function ImproveSkills({ hasResume = false }) {
       setPendingTaskId(null);
     }
   };
+
+  const planPanel = activePlan ? (
+    <PlanView
+      plan={activePlan}
+      pendingTaskId={pendingTaskId}
+      regenerating={generating && builderSkill === activePlan.skill}
+      onClose={() => setActivePlan(null)}
+      onToggle={toggleTask}
+      onRegenerate={() =>
+        openBuilder(activePlan.skill, {
+          duration_weeks: activePlan.duration_weeks,
+          hours_per_week: activePlan.hours_per_week,
+          start_date: activePlan.start_date,
+          study_days: activePlan.study_days,
+        })
+      }
+    />
+  ) : null;
 
   return (
     <section aria-labelledby="improve-skills-heading">
@@ -187,17 +289,17 @@ export default function ImproveSkills({ hasResume = false }) {
         {planNotice && <p className="mt-4 text-sm text-amber-200/80">{planNotice}</p>}
 
         {plans.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2">
-            {plans.map((plan) => (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => openPlan(plan.id)}
-                className="rounded-full border border-emerald-300/20 px-3 py-1.5 text-xs text-emerald-100 hover:bg-emerald-400/10"
-              >
-                {plan.skill} · {plan.progress?.done || 0}/{plan.progress?.total || 0}
-              </button>
-            ))}
+          <div className="mt-5 space-y-2">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-white/35">Saved plans</p>
+            {plans.map((plan) => {
+              const shownOnSkill = skills.some((item) => item.skill === plan.skill);
+              return (
+                <div key={plan.id} id={shownOnSkill ? undefined : `skill-plan-${plan.skill}`}>
+                  <SavedPlanRow plan={plan} onOpen={() => openPlan(plan.id)} />
+                  {!shownOnSkill && activePlan?.id === plan.id && planPanel}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -218,9 +320,11 @@ export default function ImproveSkills({ hasResume = false }) {
           )}
 
           {!loading &&
-            skills.map((item) => (
+            skills.map((item) => {
+              const saved = plans.find((plan) => plan.skill === item.skill);
+              return (
+              <div key={item.skill} id={`skill-plan-${item.skill}`} className="space-y-3">
               <motion.article
-                key={item.skill}
                 whileHover={reduce ? undefined : { scale: 1.02, y: -3 }}
                 transition={reduce ? { duration: 0 } : { duration: 0.22 }}
                 className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4"
@@ -247,36 +351,22 @@ export default function ImproveSkills({ hasResume = false }) {
                         transition={reduce ? { duration: 0 } : { duration: 0.6 }}
                       />
                     </div>
+                    {saved && <PlanProgress plan={saved} />}
                     <button
                       type="button"
-                      onClick={() => openBuilder(item.skill)}
+                      onClick={() => (saved ? openPlan(saved.id) : openBuilder(item.skill))}
                       className="mt-4 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 px-3.5 py-2 text-xs font-semibold text-slate-950"
                     >
-                      Build my plan
+                      {saved ? 'View my plan' : 'Build my plan'}
                     </button>
                   </div>
                 </div>
               </motion.article>
-            ))}
+              {activePlan?.skill === item.skill && planPanel}
+              </div>
+              );
+            })}
         </div>
-
-        {activePlan && (
-          <PlanView
-            plan={activePlan}
-            pendingTaskId={pendingTaskId}
-            regenerating={generating && builderSkill === activePlan.skill}
-            onClose={() => setActivePlan(null)}
-            onToggle={toggleTask}
-            onRegenerate={() =>
-              openBuilder(activePlan.skill, {
-                duration_weeks: activePlan.duration_weeks,
-                hours_per_week: activePlan.hours_per_week,
-                start_date: activePlan.start_date,
-                study_days: activePlan.study_days,
-              })
-            }
-          />
-        )}
       </div>
 
       {builderSkill && (
@@ -285,9 +375,7 @@ export default function ImproveSkills({ hasResume = false }) {
           initial={builderSeed}
           generating={generating}
           error={builderError}
-          onClose={() => {
-            if (!generating) setBuilderSkill(null);
-          }}
+          onClose={closeBuilder}
           onGenerate={generate}
         />
       )}

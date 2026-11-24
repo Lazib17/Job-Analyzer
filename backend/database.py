@@ -213,25 +213,42 @@ def fetch_all(
 
 
     client = get_supabase_client()
+    rows: list[dict] = []
+    page_size = 1000
+    start = 0
 
-    query = client.table(table).select("*")
+    while True:
+        query = client.table(table).select("*")
+        if filters:
+            for key, value in filters.items():
+                query = query.eq(key, value)
+        if order_by:
+            query = query.order(order_by, desc=not ascending)
+        result = query.range(start, start + page_size - 1).execute()
+        batch = result.data or []
+        rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        start += page_size
 
-    if filters:
+    return rows
 
-        for key, value in filters.items():
 
-            query = query.eq(key, value)
 
-    if order_by:
 
-        query = query.order(order_by, desc=not ascending)
 
-    result = query.execute()
+def insert_rows(table: str, rows: list[dict[str, Any]]) -> list[dict]:
+    """Insert many rows in one request and return the created records."""
+    if not rows:
+        return []
+    if _should_use_local_db():
+        from local_database import local_insert_rows
 
+        return local_insert_rows(table, rows)
+
+    client = get_supabase_client()
+    result = client.table(table).insert(rows).execute()
     return result.data or []
-
-
-
 
 
 def insert_row(table: str, data: dict[str, Any]) -> dict:

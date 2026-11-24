@@ -23,11 +23,11 @@ export default function PlanBuilder({ skill, initial, generating, error, onClose
 
   useEffect(() => {
     const onKey = (event) => {
-      if (event.key === 'Escape' && !generating) onClose();
+      if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [generating, onClose]);
+  }, [onClose]);
 
   const toggleDay = (id) => {
     setDays((current) => (current.includes(id) ? current.filter((day) => day !== id) : [...current, id]));
@@ -46,7 +46,7 @@ export default function PlanBuilder({ skill, initial, generating, error, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-4 sm:items-center" onClick={generating ? undefined : onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-4 sm:items-center" onClick={onClose}>
       <form
         role="dialog"
         aria-modal="true"
@@ -65,10 +65,9 @@ export default function PlanBuilder({ skill, initial, generating, error, onClose
           <button
             type="button"
             onClick={onClose}
-            disabled={generating}
-            className="rounded-lg px-2 py-1 text-sm text-white/50 hover:bg-white/[0.06] hover:text-white disabled:opacity-40"
+            className="rounded-lg px-2 py-1 text-sm text-white/50 hover:bg-white/[0.06] hover:text-white"
           >
-            Close
+            {generating ? 'Cancel' : 'Close'}
           </button>
         </div>
 
@@ -182,6 +181,9 @@ export default function PlanBuilder({ skill, initial, generating, error, onClose
         >
           {generating ? 'Building your plan…' : 'Generate plan'}
         </button>
+        {generating && (
+          <p className="mt-3 text-center text-xs text-white/40">You can cancel this and close the window.</p>
+        )}
       </form>
     </div>
   );

@@ -8,6 +8,7 @@ results become a YouTube search link for that stage. Those links are not cached.
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import quote_plus
@@ -15,7 +16,9 @@ from urllib.parse import quote_plus
 import httpx
 
 from config import settings
-from database import fetch_all, insert_row, update_row
+from services.plan_store import plan_fetch_all as fetch_all
+from services.plan_store import plan_insert_row as insert_row
+from services.plan_store import plan_update_row as update_row
 from services.reading_resources import subject_for_skill
 from utils.youtube_rank import (
     STAGES,
@@ -30,7 +33,7 @@ logger = logging.getLogger(__name__)
 _SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 _CACHE_TTL = timedelta(days=30)
-_TIMEOUT = 12.0
+_TIMEOUT = 6.0
 
 _STAGE_QUERIES = {
     "intro": "{skill} for beginners crash course",
@@ -190,6 +193,17 @@ def _fetch_candidates(video_ids: list[str], api_key: str) -> list[VideoCandidate
     return candidates_from_videos_list(data)
 
 
+def _stage_candidates(query: str, api_key: str, languages: tuple[str, ...]) -> list[VideoCandidate]:
+    ids: list[str] = []
+    for language in languages:
+        for video_id in _search_ids(query, api_key, language):
+            if video_id not in ids:
+                ids.append(video_id)
+        if len(ids) >= 5:
+            break
+    return _fetch_candidates(ids, api_key)
+
+
 def videos_for_skill(skill: str, api_key: Optional[str] = None, now: Optional[datetime] = None) -> list[dict]:
     """
     Three results, one per stage. Real videos come from the API. Otherwise a search link.
@@ -222,19 +236,23 @@ def videos_for_skill(skill: str, api_key: Optional[str] = None, now: Optional[da
             results.append(search_link(stage, queries[stage]))
         return _ordered(results)
 
-    languages = ("en", "ja") if level else ("en",)
+    languages = ("ja", "en") if level else ("en",)
     by_stage: dict[str, list[VideoCandidate]] = {}
-    try:
-        for stage in missing_stages:
-            ids: list[str] = []
-            for language in languages:
-                for video_id in _search_ids(queries[stage], key, language):
-                    if video_id not in ids:
-                        ids.append(video_id)
-            by_stage[stage] = _fetch_candidates(ids, key)
-    except httpx.HTTPError:
-        logger.warning("YouTube request failed", exc_info=True)
-        by_stage = {}
+    pool = ThreadPoolExecutor(max_workers=max(1, len(missing_stages)))
+    futures = {
+        pool.submit(_stage_candidates, queries[stage], key, languages): stage
+        for stage in missing_stages
+    }
+    done, pending = wait(futures, timeout=8)
+    for future in pending:
+        future.cancel()
+    pool.shutdown(wait=False, cancel_futures=True)
+    for future in done:
+        stage = futures[future]
+        try:
+            by_stage[stage] = future.result()
+        except Exception:
+            logger.warning("YouTube lookup failed for %s", stage, exc_info=True)
 
     chosen = choose_videos(by_stage, skill, catalog_key, moment, excluded_ids=already_used)
     for stage in missing_stages:

@@ -6,6 +6,7 @@ import { platformColor } from '@/lib/design-tokens';
 function platformBadge(platform = '') {
   const key = String(platform).toLowerCase();
   if (key.includes('mynavi')) return 'bg-platform-mynavi/15 text-blue-300 border-platform-mynavi/30';
+  if (key.includes('forum')) return 'bg-platform-careerforum/15 text-indigo-300 border-platform-careerforum/30';
   if (key.includes('career')) return 'bg-platform-careercross/15 text-amber-300 border-platform-careercross/30';
   if (key.includes('wantedly')) return 'bg-platform-wantedly/15 text-rose-300 border-platform-wantedly/30';
   if (key.includes('gaijin')) return 'bg-platform-gaijinpot/15 text-emerald-300 border-platform-gaijinpot/30';

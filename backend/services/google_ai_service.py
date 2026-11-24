@@ -2,6 +2,7 @@
 Google AI Studio (Gemini) integration for job-resume analysis.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -72,12 +73,15 @@ class GoogleAIService:
         system_instruction: str = ANALYSIS_SYSTEM_PROMPT,
         max_output_tokens: int = 1024,
         temperature: float = 0.3,
+        timeout: Optional[float] = None,
+        models: Optional[list[str]] = None,
     ) -> str:
         """Try primary model, then fallbacks on quota errors."""
         seen: set[str] = set()
         last_error: Optional[Exception] = None
+        request_options = {"timeout": timeout} if timeout else None
 
-        for model_name in self.fallback_models:
+        for model_name in models or self.fallback_models:
             if model_name in seen:
                 continue
             seen.add(model_name)
@@ -90,6 +94,7 @@ class GoogleAIService:
                         max_output_tokens=max_output_tokens,
                         response_mime_type="application/json",
                     ),
+                    request_options=request_options,
                 )
                 return response.text or ""
             except Exception as exc:
@@ -127,6 +132,8 @@ class GoogleAIService:
         system_instruction: str,
         max_output_tokens: int = 4096,
         temperature: float = 0.3,
+        timeout: Optional[float] = None,
+        models: Optional[list[str]] = None,
     ) -> dict:
         """Ask Gemini for a JSON object. Callers validate the shape themselves."""
         raw_text = self._generate_with_fallback(
@@ -134,6 +141,8 @@ class GoogleAIService:
             system_instruction=system_instruction,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
+            timeout=timeout,
+            models=models,
         )
         return self._parse_json_response(raw_text)
 
@@ -155,8 +164,27 @@ class GoogleAIService:
         )
 
         try:
-            raw_text = self._generate_with_fallback(prompt)
+            raw_text = await asyncio.to_thread(
+                self._generate_with_fallback,
+                prompt,
+                ANALYSIS_SYSTEM_PROMPT,
+                8192,
+                0.3,
+                25,
+            )
             parsed = self._parse_json_response(raw_text)
+            score = parsed.get("compatibility_score")
+            if isinstance(score, str):
+                digits = re.search(r"\d+", score)
+                parsed["compatibility_score"] = int(digits.group(0)) if digits else 0
+            elif isinstance(score, float):
+                parsed["compatibility_score"] = int(round(score))
+            for key in ("matching_skills", "missing_skills"):
+                value = parsed.get(key)
+                if isinstance(value, str):
+                    parsed[key] = [part.strip() for part in value.split(",") if part.strip()]
+                elif value is None:
+                    parsed[key] = []
             return AIAnalysisResult(**parsed)
         except json.JSONDecodeError as exc:
             logger.error("Failed to parse Gemini JSON response: %s", exc)

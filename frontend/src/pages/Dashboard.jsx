@@ -10,6 +10,7 @@ import {
   getResume,
   getSearchHistory,
   getSkillsGap,
+  toggleFavorite,
   uploadResume,
 } from '../api/axios';
 import {
@@ -29,7 +30,7 @@ const PLATFORM_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'mynavi', label: 'Mynavi' },
   { id: 'careercross', label: 'CareerCross' },
-  { id: 'wantedly', label: 'Wantedly' },
+  { id: 'careerforum', label: 'Career Forum' },
   { id: 'gaijinpot', label: 'GaijinPot' },
   { id: 'favorites', label: 'Favorites' },
 ];
@@ -38,7 +39,8 @@ function matchesPlatform(job, filter) {
   if (filter === 'all') return true;
   if (filter === 'favorites') return Boolean(job.is_favorite);
   const key = String(job.source_platform || '').toLowerCase().replace(/\s+/g, '');
-  if (filter === 'careercross') return key.includes('career');
+  if (filter === 'careercross') return key.includes('careercross') || key.includes('cross');
+  if (filter === 'careerforum') return key.includes('forum');
   if (filter === 'gaijinpot') return key.includes('gaijin');
   return key.includes(filter);
 }
@@ -59,8 +61,8 @@ export default function Dashboard() {
     loadDashboard();
   }, []);
 
-  const loadDashboard = async () => {
-    setLoading(true);
+  const loadDashboard = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const [jobsRes, skillsRes, historyRes] = await Promise.allSettled([
         getRankedJobs(),
@@ -86,12 +88,29 @@ export default function Dashboard() {
   const handleAnalyzeAll = async () => {
     setAnalyzing(true);
     try {
-      await analyzeAllJobs();
-      await loadDashboard();
+      const { data } = await analyzeAllJobs();
+      const failed = data.errors?.length || 0;
+      const remaining = data.remaining ?? 0;
+      if (failed) {
+        const reason = data.errors[0]?.error || 'The model could not score that listing.';
+        alert(`Scored ${data.analyzed} jobs. ${remaining} are still waiting. ${reason}`);
+      } else if ((data.analyzed || 0) === 0) {
+        alert('Every job already has a score.');
+      }
+      await loadDashboard({ silent: true });
     } catch (err) {
       alert(err.response?.data?.detail || 'Analysis failed');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleFavorite = async (id) => {
+    try {
+      await toggleFavorite(id);
+      await loadDashboard({ silent: true });
+    } catch {
+      alert('Could not update saved jobs.');
     }
   };
 
@@ -140,10 +159,13 @@ export default function Dashboard() {
     : 0;
   const topScore = scoredJobs.length ? Math.max(...scoredJobs.map((j) => j.compatibility_score)) : 0;
 
-  const chartData = scoredJobs.slice(0, 8).map((j) => ({
-    name: j.job_title.slice(0, 20),
+  const chartData = scoredJobs.map((j) => ({
+    name: j.job_title.slice(0, 18),
     score: j.compatibility_score,
   }));
+
+  const savedJobs = jobs.filter((job) => job.is_favorite);
+  const unscoredCount = jobs.filter((job) => job.compatibility_score == null).length;
 
   const filteredJobs = useMemo(() => {
     const next = jobs.filter((job) => matchesPlatform(job, filter));
@@ -192,7 +214,11 @@ export default function Dashboard() {
                 disabled={analyzing}
                 className="inline-flex rounded-xl bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-white shadow-accent-glow disabled:opacity-70"
               >
-                {analyzing ? 'Analyzing…' : 'Analyze All Jobs'}
+                {analyzing
+                  ? 'Scoring 3 jobs…'
+                  : unscoredCount
+                    ? `Score next 3 (${unscoredCount} left)`
+                    : 'All jobs scored'}
               </button>
             </>
           }
@@ -267,6 +293,23 @@ export default function Dashboard() {
         </FadeInSection>
 
         <FadeInSection>
+          <SectionTitle>Saved jobs</SectionTitle>
+          {savedJobs.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {savedJobs.map((job) => (
+                <JobCard key={job.id} job={job} onFavorite={handleFavorite} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">
+              <Star className="mx-auto mb-3 h-6 w-6 text-amber-300" strokeWidth={1.5} />
+              <p className="font-display text-lg font-semibold text-white">No saved jobs yet</p>
+              <p className="mt-1 text-sm text-white/45">Save a listing from the matches below or from a job page.</p>
+            </div>
+          )}
+        </FadeInSection>
+
+        <FadeInSection>
           <SectionTitle
             action={
               <Link to="/results" className="text-xs text-white/45 hover:text-white">
@@ -301,7 +344,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <AnimatePresence mode="popLayout">
                 {filteredJobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard key={job.id} job={job} onFavorite={handleFavorite} />
                 ))}
               </AnimatePresence>
             </div>
@@ -311,7 +354,7 @@ export default function Dashboard() {
               <p className="font-display text-lg font-semibold text-white">No matches yet</p>
               <p className="mt-1 max-w-sm text-sm text-white/45">
                 {jobs.length === 0
-                  ? 'Run a search to scan Mynavi, CareerCross, Wantedly, and GaijinPot.'
+                  ? 'Run a search to scan Mynavi, CareerCross, Career Forum, and GaijinPot.'
                   : 'Nothing in this filter. Try All or another platform.'}
               </p>
               {jobs.length === 0 && (

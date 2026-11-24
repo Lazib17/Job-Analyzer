@@ -13,13 +13,11 @@ from playwright.async_api import async_playwright
 
 from config import settings
 from models.scraped_job import ScrapedJob
+from utils.role_match import search_query, title_matches
 
 logger = logging.getLogger(__name__)
 
-CAREERCROSS_SEARCH_URL = (
-    "https://www.careercross.com/en/jobs/search?keywords={keyword}&sort=new"
-)
-CAREERCROSS_IT_URL = "https://www.careercross.com/en/jobs/search?industry=IT&keywords=engineer"
+CAREERCROSS_SEARCH_URL = "https://www.careercross.com/en/search?k={keyword}"
 
 FRESHMAN_KEYWORDS = [
     "entry",
@@ -110,8 +108,12 @@ class CareerCrossScraper:
         search_url = CAREERCROSS_SEARCH_URL.format(
             keyword=quote_plus(keyword or "entry level engineer")
         )
-        await page.goto(search_url, wait_until="domcontentloaded", timeout=90000)
+        await page.goto(search_url, wait_until="domcontentloaded", timeout=45000)
         await asyncio.sleep(self.delay + 1)
+        title = await page.title()
+        if "Just a moment" in title or "security verification" in (await page.inner_text("body")).lower():
+            logger.warning("CareerCross blocked the browser with a bot check")
+            return []
 
         for _ in range(3):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -136,32 +138,7 @@ class CareerCrossScraper:
             }"""
         )
 
-        if not raw_links:
-            await page.goto(CAREERCROSS_IT_URL, wait_until="domcontentloaded", timeout=90000)
-            await asyncio.sleep(self.delay)
-            raw_links = await page.evaluate(
-                """() => {
-                    const results = [];
-                    const seen = new Set();
-                    document.querySelectorAll('a[href*="/jobs/detail"]').forEach((a) => {
-                        const href = (a.href || '').split('?')[0];
-                        const text = (a.innerText || '').trim();
-                        if (seen.has(href) || !text) return;
-                        seen.add(href);
-                        results.push({ href, title: text });
-                    });
-                    return results;
-                }"""
-            )
-
-        filtered = [l for l in raw_links if self._is_relevant_job(l.get("title", ""))]
-        if not filtered:
-            filtered = [
-                l for l in raw_links
-                if any(kw in l.get("title", "").lower() for kw in ("engineer", "developer", "IT"))
-            ]
-
-        return filtered[: max_results * 2]
+        return raw_links[:40]
 
     async def _scrape_job_detail(self, page, href: str, fallback_title: str) -> Optional[ScrapedJob]:
         try:
@@ -191,7 +168,19 @@ class CareerCrossScraper:
                 return None
 
             location = "Japan"
-            for loc in ("Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya", "Fukuoka", "Remote"):
+            for loc in (
+                "Tokyo",
+                "Osaka",
+                "Yokohama",
+                "Nagoya",
+                "Fukuoka",
+                "Sapporo",
+                "Kobe",
+                "Kyoto",
+                "Hiroshima",
+                "Sendai",
+                "Remote",
+            ):
                 if loc.lower() in page_text.lower():
                     location = loc
                     break
@@ -224,16 +213,15 @@ class CareerCrossScraper:
         job_title: str = "",
         location: str = "",
         max_results: Optional[int] = None,
+        job_titles: Optional[list[str]] = None,
         **_kwargs,
     ) -> list[ScrapedJob]:
-        """Scrape CareerCross entry-level and bilingual tech jobs."""
+        """Scrape CareerCross jobs whose titles match the selected positions."""
         logger.info("CareerCross scraping started")
-        max_results = max_results or min(15, settings.scrape_max_jobs)
+        max_results = max_results or min(8, settings.scrape_max_jobs)
+        selected = job_titles or ([job_title] if job_title else [])
         results: list[ScrapedJob] = []
-
-        keyword = job_title or "entry level engineer"
-        if job_title and "entry" not in job_title.lower() and "junior" not in job_title.lower():
-            keyword = f"{job_title} entry"
+        seen: set[str] = set()
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
@@ -241,14 +229,27 @@ class CareerCrossScraper:
             page = await context.new_page()
 
             try:
-                links = await self._collect_listing_links(page, keyword, max_results)
-                for link in links:
-                    job = await self._scrape_job_detail(
-                        page, link["href"], link.get("title", job_title)
+                candidates: list[dict] = []
+                for label in selected:
+                    links = await self._collect_listing_links(
+                        page, search_query(label, "en"), max_results
                     )
-                    if job and self._is_relevant_job(job.job_title, job.description):
-                        results.append(job)
-                    elif job and ("engineer" in job.job_title.lower() or "エンジニア" in job.job_title):
+                    if not links and "Just a moment" in await page.title():
+                        break
+                    for link in links:
+                        href = link.get("href", "")
+                        if href in seen:
+                            continue
+                        if not title_matches(link.get("title", ""), [label]):
+                            continue
+                        seen.add(href)
+                        candidates.append(link)
+
+                for link in candidates:
+                    job = await self._scrape_job_detail(
+                        page, link["href"], link.get("title", "")
+                    )
+                    if job and title_matches(job.job_title, selected):
                         results.append(job)
                     if len(results) >= max_results:
                         break

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 
 class JobBase(BaseModel):
@@ -46,15 +46,20 @@ JAPANESE_SEARCH_LEVELS = (
 )
 
 
+WORK_ARRANGEMENTS = ("Any", "Remote", "On-site", "Hybrid")
+
+
 class JobSearchRequest(BaseModel):
-    """User preferences for LinkedIn job search."""
-    job_title: str = Field(..., min_length=1, description="Desired job title")
-    location: str = Field(default="Remote", description="Job location")
+    """Positions and filters for a Japan job-board search."""
+    job_title: str = ""
+    job_titles: list[str] = Field(default_factory=list, max_length=4)
+    location: str = Field(default="Any", description="Remote, On-site, Hybrid, or Any")
+    city: str = Field(default="Any", description="Japanese city, or Any")
     experience_level: Optional[str] = Field(
         default=None, description="e.g. entry, mid, senior"
     )
     remote_only: bool = False
-    max_results: int = Field(default=25, ge=1, le=50)
+    max_results: int = Field(default=8, ge=1, le=50)
     japanese_level: str = Field(
         default="No Japanese",
         description="Highest Japanese level the user can work in",
@@ -71,6 +76,58 @@ class JobSearchRequest(BaseModel):
                 "japanese_level must be one of: " + ", ".join(JAPANESE_SEARCH_LEVELS)
             )
         return match
+
+    @field_validator("location")
+    @classmethod
+    def _normalize_location(cls, value: str) -> str:
+        cleaned = value.strip()
+        allowed = {item.lower(): item for item in WORK_ARRANGEMENTS}
+        match = allowed.get(cleaned.lower())
+        if match is None:
+            raise ValueError(
+                "location must be one of: " + ", ".join(WORK_ARRANGEMENTS)
+            )
+        return match
+
+    @field_validator("city")
+    @classmethod
+    def _normalize_city(cls, value: str) -> str:
+        from utils.city_match import CITY_NAMES
+
+        cleaned = value.strip()
+        allowed = {item.lower(): item for item in CITY_NAMES}
+        match = allowed.get(cleaned.lower())
+        if match is None:
+            raise ValueError("city must be one of: " + ", ".join(CITY_NAMES))
+        return match
+
+    @model_validator(mode="after")
+    def _normalize_titles(self):
+        from utils.role_match import ROLE_BY_LABEL
+
+        raw = [item.strip() for item in self.job_titles if item and item.strip()]
+        if not raw and self.job_title.strip():
+            raw = [part.strip() for part in self.job_title.split(",") if part.strip()]
+        chosen: list[str] = []
+        for item in raw:
+            match = ROLE_BY_LABEL.get(item)
+            if match is None:
+                folded = {label.lower(): label for label in ROLE_BY_LABEL}
+                match_label = folded.get(item.lower())
+                if match_label is None:
+                    raise ValueError("Choose a position from the list")
+                item = match_label
+            else:
+                item = match["label"]
+            if item not in chosen:
+                chosen.append(item)
+        if not chosen:
+            raise ValueError("Choose at least one position")
+        if len(chosen) > 4:
+            raise ValueError("Choose up to 4 positions")
+        self.job_titles = chosen
+        self.job_title = ", ".join(chosen)
+        return self
 
 
 class JobWithAnalysis(JobResponse):

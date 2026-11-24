@@ -66,7 +66,7 @@ export const getLearningSkills = () => api.get('/learning/skills');
 export const getLearningResources = (skill) => api.get('/learning/resources', { params: { skill } });
 export const getLearningPlans = () => api.get('/learning/plans');
 export const getLearningPlan = (id) => api.get(`/learning/plans/${id}`);
-export const createLearningPlan = (data) => api.post('/learning/plans', data);
+export const createLearningPlan = (data, config) => api.post('/learning/plans', data, config);
 export const updateLearningTask = (planId, taskId, done) =>
   api.patch(`/learning/plans/${planId}/tasks/${taskId}`, { done });
 

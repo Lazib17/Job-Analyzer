@@ -19,6 +19,7 @@ export default function JobResults() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analyzingId, setAnalyzingId] = useState(null);
+  const [scoring, setScoring] = useState(false);
   const [filters, setFilters] = useState({
     min_score: '',
     favorites_only: false,
@@ -29,8 +30,8 @@ export default function JobResults() {
     loadJobs();
   }, [filters]);
 
-  const loadJobs = async () => {
-    setLoading(true);
+  const loadJobs = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const params = {};
       if (filters.min_score) params.min_score = Number(filters.min_score);
@@ -68,19 +69,24 @@ export default function JobResults() {
   };
 
   const handleAnalyzeAll = async () => {
-    setLoading(true);
+    setScoring(true);
     try {
       const { data } = await analyzeAllJobs();
-      if (data.errors?.length) {
-        alert(`Analyzed ${data.analyzed} jobs. ${data.errors.length} failed.`);
-      } else if (data.analyzed === 0) {
+      const failed = data.errors?.length || 0;
+      const remaining = data.remaining ?? 0;
+      if (!data.total) {
         alert('No jobs to analyze. Search for jobs first.');
+      } else if (failed) {
+        const reason = data.errors[0]?.error || 'The model could not score that listing.';
+        alert(`Scored ${data.analyzed} jobs. ${remaining} are still waiting. ${reason}`);
+      } else if (data.analyzed === 0) {
+        alert('Every job already has a score.');
       }
-      loadJobs();
+      await loadJobs({ silent: true });
     } catch (err) {
       alert(err.response?.data?.detail || 'Bulk analysis failed');
     } finally {
-      setLoading(false);
+      setScoring(false);
     }
   };
 
@@ -104,7 +110,9 @@ export default function JobResults() {
           title="Job results"
           subtitle={`${jobs.length} jobs ranked by AI compatibility score.`}
           actions={
-            <VetraButton onClick={handleAnalyzeAll}>Analyze All</VetraButton>
+            <VetraButton onClick={handleAnalyzeAll} loading={scoring}>
+              {scoring ? 'Scoring 3 jobs…' : 'Score next 3'}
+            </VetraButton>
           }
         />
 

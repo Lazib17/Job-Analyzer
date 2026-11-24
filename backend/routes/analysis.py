@@ -2,6 +2,7 @@
 AI analysis and ranked jobs routes.
 """
 
+import asyncio
 from typing import Optional
 from uuid import UUID
 
@@ -17,6 +18,9 @@ from utils.auth import get_current_user
 from utils.ranking import aggregate_missing_skills, rank_jobs
 
 router = APIRouter(tags=["Analysis"])
+
+# One click scores a few listings, then stops, so Gemini is not flooded.
+ANALYZE_BATCH = 3
 
 
 def _merge_job_with_analysis(job: dict, analysis: Optional[dict]) -> JobWithAnalysis:
@@ -51,13 +55,17 @@ async def _run_analysis_for_job(user_id: str, job_id: str) -> AnalysisResponse:
     if not resume_text:
         raise HTTPException(status_code=400, detail="Resume has no extracted text.")
 
+    requirements = job.get("requirements")
+    if isinstance(requirements, list):
+        requirements = "\n".join(str(item) for item in requirements if item)
+
     try:
         result = await google_ai_service.analyze_job(
             resume_text=resume_text,
             job_title=job["job_title"],
             company=job["company"],
-            description=job.get("description", ""),
-            requirements=job.get("requirements"),
+            description=job.get("description", "") or "",
+            requirements=requirements or "",
         )
     except Exception as exc:
         err = str(exc)
@@ -97,28 +105,45 @@ async def analyze_job(
     return await _run_analysis_for_job(str(current_user.id), str(job_id))
 
 
+def _analyses_by_job(user_id: str) -> dict[str, dict]:
+    rows = fetch_all("analysis", filters={"user_id": user_id})
+    return {str(row.get("job_id")): row for row in rows}
+
+
 @router.post("/analyze-all")
 async def analyze_all_jobs(current_user: UserResponse = Depends(get_current_user)):
-    """Analyze all unanalyzed jobs for the current user."""
-    jobs = fetch_all("jobs", filters={"user_id": str(current_user.id)})
+    """Score the next few jobs that do not already have a score."""
+    user_id = str(current_user.id)
+    jobs = fetch_all("jobs", filters={"user_id": user_id})
+    scored = {
+        job_id
+        for job_id, row in _analyses_by_job(user_id).items()
+        if row.get("compatibility_score") is not None
+    }
+    pending = [job for job in jobs if str(job["id"]) not in scored]
     results = []
     errors = []
 
-    for job in jobs:
-        existing = fetch_one(
-            "analysis",
-            {"job_id": job["id"], "user_id": str(current_user.id)},
-        )
-        if existing:
-            continue
+    for index, job in enumerate(pending[:ANALYZE_BATCH]):
+        if index:
+            await asyncio.sleep(1.5)
         try:
-            analysis = await _run_analysis_for_job(str(current_user.id), job["id"])
-            results.append(analysis)
+            analysis = await _run_analysis_for_job(user_id, job["id"])
+            results.append(
+                {"job_id": str(job["id"]), "compatibility_score": analysis.compatibility_score}
+            )
         except HTTPException as exc:
             errors.append({"job_id": job["id"], "error": exc.detail})
+            if exc.status_code == 400 or "quota" in str(exc.detail).lower():
+                break
+        except Exception as exc:
+            errors.append({"job_id": job["id"], "error": str(exc)})
 
     return {
+        "total": len(jobs),
         "analyzed": len(results),
+        "already_scored": len(scored),
+        "remaining": len(pending) - len(results),
         "errors": errors,
         "results": results,
     }
@@ -152,14 +177,11 @@ def _fetch_ranked_jobs_for_user(
         order_by="created_at",
         ascending=False,
     )
+    analyses = _analyses_by_job(user_id)
 
     merged: list[JobWithAnalysis] = []
     for job in jobs:
-        analysis = fetch_one(
-            "analysis",
-            {"job_id": job["id"], "user_id": user_id},
-        )
-        merged.append(_merge_job_with_analysis(job, analysis))
+        merged.append(_merge_job_with_analysis(job, analyses.get(str(job["id"]))))
 
     return rank_jobs(merged, min_score, favorites_only, search_query)
 

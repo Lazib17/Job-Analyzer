@@ -9,9 +9,9 @@ const PREVIEW_JOBS = [
     title: 'Junior Frontend Engineer',
     company: 'Mercari',
     location: 'Tokyo',
-    platform: 'Wantedly',
+    platform: 'Career Forum',
     score: 92,
-    platformClass: 'bg-platform-wantedly/15 text-rose-300 border-platform-wantedly/30',
+    platformClass: 'bg-platform-careerforum/15 text-indigo-300 border-platform-careerforum/30',
   },
   {
     title: 'New Grad iOS Engineer',
@@ -137,7 +137,7 @@ const FEATURES = [
     icon: Globe2,
     title: 'Four boards, one search',
     description:
-      'We scrape Mynavi, CareerCross, Wantedly, and GaijinPot in parallel so you are not hopping between Japan job sites.',
+      'We scrape Mynavi, CareerCross, Career Forum, and GaijinPot in parallel so you are not hopping between Japan job sites.',
     featured: true,
   },
   {
@@ -213,7 +213,7 @@ export default function Landing() {
           transition={{ delay: 0.18, duration: 0.45 }}
           className="mt-6 max-w-2xl text-base leading-relaxed text-white/50 sm:text-lg"
         >
-          We scan Mynavi, CareerCross, Wantedly, and GaijinPot for entry-level and visa-friendly tech roles, then score every listing against your resume with Gemini so the best matches rise to the top.
+          We scan Mynavi, CareerCross, Career Forum, and GaijinPot for entry-level and visa-friendly tech roles, then score every listing against your resume with Gemini so the best matches rise to the top.
         </motion.p>
 
         <motion.div
@@ -311,7 +311,7 @@ export default function Landing() {
               {
                 icon: Search,
                 step: '02',
-                title: 'We Scan Mynavi, CareerCross, Wantedly & GaijinPot',
+                title: 'We Scan Mynavi, CareerCross, Career Forum & GaijinPot',
                 body: 'Four Japan job boards, searched in parallel for entry-level and foreigner-friendly tech roles.',
               },
               {

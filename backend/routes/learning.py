@@ -1,5 +1,6 @@
 """Learning-plan inputs: ranked skills, resources, and saved plans."""
 
+import asyncio
 import logging
 import time
 from collections import defaultdict
@@ -114,13 +115,24 @@ async def create_learning_plan(
     _enforce_plan_rate_limit(user_id)
     level = _saved_japanese_level(user_id)
     try:
-        draft, source, resources = draft_plan(
-            body.skill,
-            body.duration_weeks,
-            body.hours_per_week,
-            level,
-        )
-        saved = save_plan(
+        try:
+            draft, source, resources = await asyncio.wait_for(
+                asyncio.to_thread(
+                    draft_plan,
+                    body.skill,
+                    body.duration_weeks,
+                    body.hours_per_week,
+                    level,
+                ),
+                timeout=28,
+            )
+        except TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail="Building the plan took too long. Close the window and try again.",
+            ) from None
+        saved = await asyncio.to_thread(
+            save_plan,
             user_id=user_id,
             skill=body.skill,
             duration_weeks=body.duration_weeks,

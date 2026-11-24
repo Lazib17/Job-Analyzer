@@ -319,6 +319,26 @@ def local_fetch_all(
     return [_normalize_row(row) for row in rows]
 
 
+def local_insert_rows(table: str, rows: list[dict[str, Any]]) -> list[dict]:
+    _validate_table(table)
+    if not rows:
+        return []
+    prepared_rows = [_prepare_insert(table, row) for row in rows]
+    columns = list(prepared_rows[0].keys())
+    column_sql = ", ".join(columns)
+    placeholders = ", ".join("?" for _ in columns)
+    sql = f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})"
+
+    with _get_connection() as conn:
+        conn.executemany(sql, [list(row[column] for column in columns) for row in prepared_rows])
+        conn.commit()
+
+    saved = []
+    for row in prepared_rows:
+        saved.append(local_fetch_one(table, {"id": row["id"]}) or row)
+    return saved
+
+
 def local_insert_row(table: str, data: dict[str, Any]) -> dict:
     _validate_table(table)
     prepared = _prepare_insert(table, data)

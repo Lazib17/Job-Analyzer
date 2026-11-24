@@ -26,6 +26,7 @@ export const colors = {
     mynavi: '#3b82f6',
     careercross: '#f59e0b',
     wantedly: '#f43f5e',
+    careerforum: '#6366f1',
     gaijinpot: '#22c55e',
   },
   white: {
@@ -59,7 +60,8 @@ export function scoreColor(score) {
 export function platformColor(platform = '') {
   const key = String(platform).toLowerCase().replace(/\s+/g, '');
   if (key.includes('mynavi')) return colors.platform.mynavi;
-  if (key.includes('career')) return colors.platform.careercross;
+  if (key.includes('forum')) return colors.platform.careerforum;
+  if (key.includes('careercross') || key.includes('cross')) return colors.platform.careercross;
   if (key.includes('wantedly')) return colors.platform.wantedly;
   if (key.includes('gaijin')) return colors.platform.gaijinpot;
   return colors.brand[500];

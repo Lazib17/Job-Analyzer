@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import date, datetime
 from typing import Optional
 
 from config import settings
-from database import fetch_all, fetch_one, insert_row, update_row
+from services.plan_store import (
+    plan_fetch_all as fetch_all,
+    plan_fetch_one as fetch_one,
+    plan_insert_row as insert_row,
+    plan_insert_rows as insert_rows,
+    plan_update_row as update_row,
+)
 from services.google_ai_service import google_ai_service
 from services.reading_resources import readings_for_skill, subject_for_skill
 from services.youtube_resources import search_link, stage_query, videos_for_skill
@@ -80,12 +87,19 @@ def draft_plan(
         logger.info("GOOGLE_API_KEY is not set — using the template study plan")
         return build_template_plan(skill, duration_weeks, hours_per_week, resources), "template", resources
 
+    started = time.monotonic()
+
     def generate(error: Optional[str]) -> dict:
+        remaining = 22 - (time.monotonic() - started)
+        if remaining < 5:
+            raise TimeoutError("plan generation is taking too long")
         return google_ai_service.generate_json(
             _prompt(skill, duration_weeks, hours_per_week, japanese_level, resources, error),
             system_instruction=PLAN_SYSTEM,
-            max_output_tokens=8192,
+            max_output_tokens=4096,
             temperature=0.4,
+            timeout=min(12, remaining),
+            models=[settings.google_model],
         )
 
     plan, source = generate_plan_with_retry(
@@ -125,21 +139,25 @@ def save_plan(
         },
     )
     plan_id = str(created["id"])
+    week_rows = insert_rows(
+        "learning_plan_weeks",
+        [
+            {"plan_id": plan_id, "week_number": number, "goal": week.goal}
+            for number, week in enumerate(plan.weeks, start=1)
+        ],
+    )
+    week_ids = {int(row["week_number"]): str(row["id"]) for row in week_rows}
+    task_rows = []
     for number, week in enumerate(plan.weeks, start=1):
-        week_row = insert_row(
-            "learning_plan_weeks",
-            {"plan_id": plan_id, "week_number": number, "goal": week.goal},
-        )
+        week_id = week_ids[number]
         for position, task in enumerate(week.tasks):
             snapshot = None
             if task.resource_id and task.resource_id in by_id:
-                item = by_id[task.resource_id]
-                snapshot = _resource_snapshot(item)
-            insert_row(
-                "learning_plan_tasks",
+                snapshot = _resource_snapshot(by_id[task.resource_id])
+            task_rows.append(
                 {
                     "plan_id": plan_id,
-                    "week_id": str(week_row["id"]),
+                    "week_id": week_id,
                     "position": position,
                     "task_type": task.type,
                     "title": task.title,
@@ -147,8 +165,9 @@ def save_plan(
                     "resource_snapshot": snapshot,
                     "estimated_minutes": task.estimated_minutes,
                     "done": False,
-                },
+                }
             )
+    insert_rows("learning_plan_tasks", task_rows)
     return load_plan(plan_id, user_id)
 
 

@@ -13,13 +13,11 @@ from playwright.async_api import async_playwright
 
 from config import settings
 from models.scraped_job import ScrapedJob
+from utils.role_match import search_query, title_matches
 
 logger = logging.getLogger(__name__)
 
-GAIJINPOT_SEARCH_URL = (
-    "https://jobs.gaijinpot.com/en/job/search?keyword={keyword}&visa_sponsorship=1"
-)
-GAIJINPOT_IT_URL = "https://jobs.gaijinpot.com/en/job/category/it-engineer"
+GAIJINPOT_SEARCH_URL = "https://jobs.gaijinpot.com/en/job?keywords={keyword}"
 
 TECH_KEYWORDS = [
     "engineer",
@@ -129,11 +127,7 @@ class GaijinPotScraper:
 
     async def _collect_job_links(self, page, keyword: str, max_results: int) -> list[dict]:
         """Collect job listing links from GaijinPot search."""
-        search_url = (
-            GAIJINPOT_SEARCH_URL.format(keyword=quote_plus(keyword or "engineer"))
-            if keyword
-            else GAIJINPOT_IT_URL
-        )
+        search_url = GAIJINPOT_SEARCH_URL.format(keyword=quote_plus(keyword or "engineer"))
         await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
         await asyncio.sleep(self.delay)
 
@@ -148,8 +142,7 @@ class GaijinPotScraper:
                 document.querySelectorAll('a[href]').forEach((a) => {
                     const href = a.href || '';
                     const text = (a.innerText || '').trim().replace(/\\s+/g, ' ');
-                    if (!href.includes('jobs.gaijinpot.com')) return;
-                    if (!href.includes('/job/') || href.includes('/job/search') || href.includes('/job/category')) return;
+                    if (!/\\/en\\/job\\/\\d+/.test(href)) return;
                     const clean = href.split('?')[0];
                     if (seen.has(clean)) return;
                     seen.add(clean);
@@ -159,15 +152,7 @@ class GaijinPotScraper:
             }"""
         )
 
-        filtered = [
-            item
-            for item in raw_links
-            if self._is_tech_job(item.get("title", ""))
-        ]
-        if not filtered:
-            filtered = raw_links
-
-        return filtered[: max_results * 2]
+        return raw_links[:40]
 
     async def _scrape_job_detail(self, page, href: str, fallback_title: str) -> Optional[ScrapedJob]:
         """Visit a GaijinPot job detail page."""
@@ -194,22 +179,22 @@ class GaijinPotScraper:
             )
 
             job_title = title or fallback_title
-            if not job_title or not self._is_tech_job(job_title, page_text):
-                return None
-
-            if not self._is_foreigner_friendly(page_text):
+            if not job_title:
                 return None
 
             location = "Japan"
             for loc in (
                 "Tokyo",
                 "Osaka",
-                "Kyoto",
+                "Yokohama",
                 "Nagoya",
                 "Fukuoka",
-                "Yokohama",
+                "Sapporo",
+                "Kobe",
+                "Kyoto",
+                "Hiroshima",
+                "Sendai",
                 "Remote",
-                "Kanto",
                 "Japan",
             ):
                 if loc.lower() in page_text.lower():
@@ -238,13 +223,15 @@ class GaijinPotScraper:
         job_title: str = "",
         location: str = "",
         max_results: Optional[int] = None,
+        job_titles: Optional[list[str]] = None,
         **_kwargs,
     ) -> list[ScrapedJob]:
-        """Scrape GaijinPot foreigner-friendly tech jobs."""
+        """Scrape GaijinPot jobs whose titles match the selected positions."""
         logger.info("GaijinPot scraping started")
-        max_results = max_results or min(15, settings.scrape_max_jobs)
+        max_results = max_results or min(8, settings.scrape_max_jobs)
+        selected = job_titles or ([job_title] if job_title else [])
         results: list[ScrapedJob] = []
-        keyword = job_title or "software engineer"
+        seen: set[str] = set()
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
@@ -252,12 +239,25 @@ class GaijinPotScraper:
             page = await context.new_page()
 
             try:
-                links = await self._collect_job_links(page, keyword, max_results)
-                for link in links:
-                    job = await self._scrape_job_detail(
-                        page, link["href"], link.get("title", job_title)
+                candidates: list[dict] = []
+                for label in selected:
+                    links = await self._collect_job_links(
+                        page, search_query(label, "en"), max_results
                     )
-                    if job:
+                    for link in links:
+                        href = link.get("href", "")
+                        if href in seen:
+                            continue
+                        if not title_matches(link.get("title", ""), [label]):
+                            continue
+                        seen.add(href)
+                        candidates.append(link)
+
+                for link in candidates:
+                    job = await self._scrape_job_detail(
+                        page, link["href"], link.get("title", "")
+                    )
+                    if job and title_matches(job.job_title, selected):
                         results.append(job)
                     if len(results) >= max_results:
                         break

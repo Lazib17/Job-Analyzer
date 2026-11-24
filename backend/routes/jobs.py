@@ -23,6 +23,8 @@ from models.scraped_job import ScrapedJob
 from models.user import UserResponse
 from utils.auth import get_current_user
 from utils.japanese_search import job_fits_japanese_level
+from utils.city_match import city_fits
+from utils.role_match import arrangement_fits, experience_fits, title_matches
 from utils.job_merge import merge_and_deduplicate
 from utils.job_storage import scraped_job_to_db_row
 from utils.job_translation import (
@@ -84,15 +86,16 @@ async def search_jobs(
     from services.career_cross_scraper import career_cross_scraper
     from services.gaijinpot_scraper import gaijinpot_scraper
     from services.mynavi_scraper import mynavi_scraper
-    from services.wantedly_scraper import wantedly_scraper
+    from services.career_forum_scraper import career_forum_scraper
 
-    per_source_limit = max(5, search.max_results // 4)
+    per_source_limit = 8
+    titles = search.job_titles
 
-    mynavi_jobs, career_cross_jobs, wantedly_jobs, gaijinpot_jobs = await asyncio.gather(
+    mynavi_jobs, career_cross_jobs, career_forum_jobs, gaijinpot_jobs = await asyncio.gather(
         _safe_scrape(
             "Mynavi",
             lambda: mynavi_scraper.search_jobs(
-                job_title=search.job_title,
+                job_titles=titles,
                 location=search.location,
                 max_results=per_source_limit,
             ),
@@ -100,15 +103,15 @@ async def search_jobs(
         _safe_scrape(
             "CareerCross",
             lambda: career_cross_scraper.search_jobs(
-                job_title=search.job_title,
+                job_titles=titles,
                 location=search.location,
                 max_results=per_source_limit,
             ),
         ),
         _safe_scrape(
-            "Wantedly",
-            lambda: wantedly_scraper.search_jobs(
-                job_title=search.job_title,
+            "Career Forum",
+            lambda: career_forum_scraper.search_jobs(
+                job_titles=titles,
                 location=search.location,
                 max_results=per_source_limit,
             ),
@@ -116,14 +119,14 @@ async def search_jobs(
         _safe_scrape(
             "GaijinPot",
             lambda: gaijinpot_scraper.search_jobs(
-                job_title=search.job_title,
+                job_titles=titles,
                 location=search.location,
                 max_results=per_source_limit,
             ),
         ),
     )
 
-    if not mynavi_jobs and not career_cross_jobs and not wantedly_jobs and not gaijinpot_jobs:
+    if not mynavi_jobs and not career_cross_jobs and not career_forum_jobs and not gaijinpot_jobs:
         raise HTTPException(
             status_code=503,
             detail="All job sources failed. Please try again later.",
@@ -132,14 +135,23 @@ async def search_jobs(
     all_jobs = (
         list(mynavi_jobs)
         + list(career_cross_jobs)
-        + list(wantedly_jobs)
+        + list(career_forum_jobs)
         + list(gaijinpot_jobs)
     )
     merged_jobs = [
         job
         for job in merge_and_deduplicate(all_jobs)
-        if job_fits_japanese_level(job.japanese_level, search.japanese_level)
+        if title_matches(job.job_title, search.job_titles)
+        and job_fits_japanese_level(job.japanese_level, search.japanese_level)
+        and arrangement_fits(job.location, job.remote_option, search.location)
+        and city_fits(job.location, search.city)
+        and experience_fits(job.job_title, search.experience_level)
     ]
+    if not merged_jobs:
+        raise HTTPException(
+            status_code=404,
+            detail="No listings matched those positions. Try another city, or set work style and location to Any.",
+        )
 
     saved_jobs: list[JobResponse] = []
     for job in merged_jobs:
@@ -151,7 +163,7 @@ async def search_jobs(
         {
             "user_id": str(current_user.id),
             "job_title": search.job_title,
-            "location": search.location,
+            "location": search.location if search.city == "Any" else f"{search.location} · {search.city}",
             "results_count": len(saved_jobs),
         },
     )

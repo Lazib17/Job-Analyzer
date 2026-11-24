@@ -61,6 +61,7 @@ export default {
           mynavi: '#3b82f6',
           careercross: '#f59e0b',
           wantedly: '#f43f5e',
+          careerforum: '#6366f1',
           gaijinpot: '#22c55e',
         },
 

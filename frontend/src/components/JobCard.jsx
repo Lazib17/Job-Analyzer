@@ -43,7 +43,7 @@ export default function JobCard({ job, onFavorite, onAnalyze, analyzing }) {
           >
             {job.is_favorite ? 'Unsave' : 'Save'}
           </VetraButton>
-          {!job.compatibility_score && (
+          {job.compatibility_score == null && (
             <VetraButton
               className="text-xs py-2 px-3"
               onClick={() => onAnalyze?.(job.id)}

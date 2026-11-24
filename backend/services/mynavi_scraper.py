@@ -13,12 +13,12 @@ from playwright.async_api import async_playwright
 
 from config import settings
 from models.scraped_job import ScrapedJob
+from utils.role_match import search_query, title_matches
 
 logger = logging.getLogger(__name__)
 
 MYNAVI_NEWGRAD_SEARCH = "https://job.mynavi.jp/26/pc/search/query.html?QKeywords={keyword}"
 MYNAVI_ENTRY_SEARCH = "https://tenshoku.mynavi.jp/list/kw{keyword}/"
-MYNAVI_ENGINEER_HUB = "https://tenshoku.mynavi.jp/engineer/"
 
 FRESHMAN_KEYWORDS = [
     "新卒",
@@ -104,7 +104,7 @@ class MynaviScraper:
         seen: set[str] = set()
 
         for search_url in search_terms:
-            if len(all_links) >= max_results:
+            if len(all_links) >= 60:
                 break
             try:
                 await page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
@@ -146,32 +146,7 @@ class MynaviScraper:
             except Exception as exc:
                 logger.warning("Mynavi listing fetch failed for %s: %s", search_url, exc)
 
-        if not all_links:
-            await page.goto(MYNAVI_ENGINEER_HUB, wait_until="domcontentloaded", timeout=60000)
-            await asyncio.sleep(self.delay)
-            links = await page.evaluate(
-                """() => {
-                    const results = [];
-                    const seen = new Set();
-                    document.querySelectorAll('a[href]').forEach((a) => {
-                        const href = a.href || '';
-                        const text = (a.innerText || '').trim().replace(/\\s+/g, ' ');
-                        if (!href.includes('tenshoku.mynavi.jp')) return;
-                        if (!href.includes('/jobinfo-')) return;
-                        if (!text || seen.has(href)) return;
-                        seen.add(href);
-                        results.push({ href, title: text });
-                    });
-                    return results;
-                }"""
-            )
-            all_links = links
-
-        filtered = [l for l in all_links if self._is_relevant_job(l.get("title", ""))]
-        if not filtered:
-            filtered = [l for l in all_links if "エンジニア" in l.get("title", "")]
-
-        return filtered[:max_results]
+        return all_links[:60]
 
     async def _scrape_job_detail(self, page, href: str, fallback_title: str) -> Optional[ScrapedJob]:
         try:
@@ -201,7 +176,7 @@ class MynaviScraper:
                 return None
 
             location_match = re.search(
-                r"(東京都|大阪府|京都府|神奈川県|愛知県|福岡県|北海道|リモート|在宅|全国|日本)",
+                r"(東京都|横浜|神奈川県|名古屋|愛知県|大阪府|札幌|北海道|神戸|兵庫県|広島|仙台|宮城県|福岡|京都府|リモート|在宅|全国|日本)",
                 page_text,
             )
             location = location_match.group(1) if location_match else "日本"
@@ -234,16 +209,15 @@ class MynaviScraper:
         job_title: str = "",
         location: str = "",
         max_results: Optional[int] = None,
+        job_titles: Optional[list[str]] = None,
         **_kwargs,
     ) -> list[ScrapedJob]:
-        """Scrape Mynavi entry-level and new-grad tech jobs."""
+        """Scrape Mynavi jobs whose titles match the selected positions."""
         logger.info("Mynavi scraping started")
-        max_results = max_results or min(15, settings.scrape_max_jobs)
+        max_results = max_results or min(8, settings.scrape_max_jobs)
+        selected = job_titles or ([job_title] if job_title else [])
         results: list[ScrapedJob] = []
-
-        keyword = job_title or "未経験 エンジニア"
-        if job_title and "未経験" not in job_title and "新卒" not in job_title:
-            keyword = f"{job_title} 未経験"
+        seen: set[str] = set()
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
@@ -254,12 +228,25 @@ class MynaviScraper:
             page = await context.new_page()
 
             try:
-                links = await self._collect_listing_links(page, keyword, max_results)
-                for link in links:
-                    job = await self._scrape_job_detail(
-                        page, link["href"], link.get("title", job_title)
+                candidates: list[dict] = []
+                for label in selected:
+                    links = await self._collect_listing_links(
+                        page, search_query(label, "ja"), max_results
                     )
-                    if job:
+                    for link in links:
+                        href = link.get("href", "")
+                        if href in seen:
+                            continue
+                        if not title_matches(link.get("title", ""), [label]):
+                            continue
+                        seen.add(href)
+                        candidates.append(link)
+
+                for link in candidates:
+                    job = await self._scrape_job_detail(
+                        page, link["href"], link.get("title", "")
+                    )
+                    if job and title_matches(job.job_title, selected):
                         results.append(job)
                     if len(results) >= max_results:
                         break

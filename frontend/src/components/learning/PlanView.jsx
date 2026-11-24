@@ -139,7 +139,7 @@ export default function PlanView({ plan, onClose, onRegenerate, regenerating, on
   const progress = plan.progress || { done: 0, total: 0 };
 
   return (
-    <div className="mt-6 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.03] p-4 sm:p-6">
+    <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.03] p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <ProgressRing done={progress.done} total={progress.total} />
@@ -148,6 +148,12 @@ export default function PlanView({ plan, onClose, onRegenerate, regenerating, on
             <p className="mt-1 text-sm text-white/50">
               {progress.done} of {progress.total} tasks · {plan.duration_weeks} weeks · {plan.hours_per_week} h/week
             </p>
+            <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                style={{ width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%` }}
+              />
+            </div>
             {plan.source === 'template' && (
               <p className="mt-1 text-xs text-white/40">Built from the standard study template.</p>
             )}
